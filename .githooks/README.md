@@ -6,7 +6,12 @@ Custom git hooks for the agent-skills repository.
 
 ### commit-msg
 
-Strips AI and agent attribution from commit messages to maintain clean git history.
+Validates commit message format and strips AI attribution.
+
+**Validates**:
+- Conventional Commits format: `type(scope): description`
+- Blank line between subject and body (if body exists)
+- Valid types: feat, fix, docs, style, refactor, test, chore
 
 **Removes**:
 - Claude Code signatures (`🤖 Generated with [Claude Code]`)
@@ -15,9 +20,11 @@ Strips AI and agent attribution from commit messages to maintain clean git histo
 - Other agentic attribution
 
 **How it works**:
-1. Attempts to use Claude Code in non-interactive mode to intelligently clean the message
-2. Falls back to regex-based cleaning if Claude Code is unavailable
-3. Preserves the actual commit message content
+1. Validates Conventional Commits format
+2. Ensures proper blank line separation
+3. Attempts to use Claude Code in non-interactive mode to intelligently clean the message
+4. Falls back to regex-based cleaning if Claude Code is unavailable
+5. Preserves the actual commit message content
 
 **Usage**: Automatic - runs on every commit
 
@@ -35,15 +42,31 @@ Runs linting and formatting checks on staged files before commit.
 
 ## Setup
 
-Hooks are automatically configured via:
+**Required for all contributors:**
+
+Hooks must be configured using an **absolute path** due to the worktree setup:
+
 ```bash
-git config core.hooksPath _hooks
+# From repository root
+git config --local core.hooksPath /Users/tnez/Code/tnez/agent-skills/main/.githooks
 ```
 
-This is set in `.git/config`:
-```ini
-[core]
-    hooksPath = _hooks
+Or set your own absolute path:
+```bash
+git config --local core.hooksPath "$(pwd)/main/.githooks"
+```
+
+**Why absolute path?**
+- This repository uses a worktree setup with `main/` as the working directory
+- Git doesn't correctly resolve relative paths for hooks in this configuration
+- Using absolute paths ensures hooks execute reliably
+
+**Verify setup:**
+```bash
+# Check hooks path is set
+git config --local core.hooksPath
+
+# Should output: /Users/tnez/Code/tnez/agent-skills/main/.githooks (or your path)
 ```
 
 ## Adding New Linters
@@ -54,7 +77,7 @@ This is set in `.git/config`:
 npm install -g markdownlint-cli
 ```
 
-Update `_hooks/pre-commit`:
+Update `.githooks/pre-commit`:
 ```bash
 markdownlint '**/*.md' --ignore node_modules
 ```
@@ -65,7 +88,7 @@ markdownlint '**/*.md' --ignore node_modules
 npm install -g prettier
 ```
 
-Update `_hooks/pre-commit`:
+Update `.githooks/pre-commit`:
 ```bash
 prettier --check '**/*.{md,json,yml,yaml}'
 ```
@@ -76,7 +99,7 @@ prettier --check '**/*.{md,json,yml,yaml}'
 pip install ruff
 ```
 
-Update `_hooks/pre-commit`:
+Update `.githooks/pre-commit`:
 ```bash
 ruff check meta/*/scripts/*.py
 ```
@@ -87,7 +110,7 @@ ruff check meta/*/scripts/*.py
 pip install yamllint
 ```
 
-Update `_hooks/pre-commit`:
+Update `.githooks/pre-commit`:
 ```bash
 # Create .yamllint config first
 yamllint **/*.md  # Check YAML frontmatter
@@ -128,26 +151,31 @@ If you need to bypass hooks (use sparingly):
 git commit --no-verify -m "message"
 
 # Skip specific hook by temporarily removing execute permission
-chmod -x _hooks/pre-commit
+chmod -x .githooks/pre-commit
 git commit -m "message"
-chmod +x _hooks/pre-commit
+chmod +x .githooks/pre-commit
 ```
 
 ## Maintenance
 
-- Hooks are version-controlled in `_hooks/`
-- All team members automatically get the hooks via `git config core.hooksPath _hooks`
-- Update hooks by editing files in `_hooks/` and committing
+- Hooks are version-controlled in `main/.githooks/`
+- Each contributor must configure hooks path locally (not stored in repo)
+- Update hooks by editing files in `.githooks/` and committing
 
 ## Troubleshooting
 
 **Hook not running**:
 ```bash
-# Verify hooksPath is set
+# Verify hooksPath is set (must be absolute path)
 git config --get core.hooksPath
 
+# Should show absolute path like: /Users/tnez/Code/tnez/agent-skills/main/.githooks
+
 # Verify hook is executable
-ls -la _hooks/
+ls -la main/.githooks/
+
+# Re-configure if needed
+git config --local core.hooksPath "$(pwd)/main/.githooks"
 ```
 
 **Claude Code not available**:
