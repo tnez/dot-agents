@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+
+jobs:
+  lint:
+    name: Lint and Format Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install linting tools
+        run: npm install -g markdownlint-cli prettier
+
+      - name: Setup just
+        uses: extractions/setup-just@v2
+
+      - name: Run linters
+        run: just lint
+
+  validate-commit-messages:
+    name: Validate Commit Messages
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate commit messages
+        run: |
+          # Get all commits in the PR
+          commits=$(git log --format=%H origin/${{ github.base_ref }}..HEAD)
+
+          # Conventional Commits regex
+          regex='^(feat|fix|docs|style|refactor|test|chore)(\([a-z0-9/_,-]+\))?: .+$'
+
+          failed=0
+          for commit in $commits; do
+            subject=$(git log -1 --format=%s $commit)
+            if ! echo "$subject" | grep -qE "$regex"; then
+              echo "❌ Invalid commit message format: $subject"
+              echo "   Commit: $commit"
+              failed=1
+            fi
+
+            # Check for blank line between subject and body
+            msg=$(git log -1 --format=%B $commit)
+            line_count=$(echo "$msg" | wc -l | tr -d ' ')
+            if [ "$line_count" -gt 1 ]; then
+              second_line=$(echo "$msg" | sed -n '2p')
+              if [ -n "$second_line" ]; then
+                echo "❌ Missing blank line between subject and body"
+                echo "   Commit: $commit"
+                failed=1
+              fi
+            fi
+          done
+
+          if [ $failed -eq 1 ]; then
+            echo ""
+            echo "Expected format: type(scope): description"
+            echo "Example: feat(skills/meta): add new meta-skill"
+            exit 1
+          fi
+
+          echo "✅ All commit messages are valid"
