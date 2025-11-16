@@ -14,6 +14,7 @@ Convert Markdown files to professional, well-formatted PDF documents using Pando
 ## When to Use This Skill
 
 Use markdown-to-pdf when you need to:
+
 - Convert Markdown documents to PDF for printing or sharing
 - Generate professional technical documentation
 - Create academic papers with citations
@@ -26,6 +27,7 @@ Use markdown-to-pdf when you need to:
 This skill requires the following to be installed:
 
 1. **Pandoc** (document converter)
+
    ```bash
    # macOS
    brew install pandoc
@@ -35,6 +37,7 @@ This skill requires the following to be installed:
    ```
 
 2. **LaTeX** (PDF rendering engine)
+
    ```bash
    # macOS
    brew install --cask basictex
@@ -46,6 +49,7 @@ This skill requires the following to be installed:
    ```
 
 3. **Eisvogel Template** (optional, for modern styling)
+
    ```bash
    # Download and install
    curl -L https://github.com/Wandmalfarbe/pandoc-latex-template/releases/latest/download/Eisvogel.tar.gz -o eisvogel.tar.gz
@@ -55,6 +59,7 @@ This skill requires the following to be installed:
    ```
 
 To verify installation:
+
 ```bash
 pandoc --version
 pdflatex --version
@@ -72,6 +77,7 @@ Ensure your Markdown file is ready for conversion:
    - Links should be properly formatted
 
 2. **Add YAML frontmatter** (optional but recommended):
+
    ```yaml
    ---
    title: "Document Title"
@@ -87,16 +93,19 @@ Ensure your Markdown file is ready for conversion:
 Determine which conversion approach fits your needs:
 
 **Basic Conversion** (default Pandoc styling):
+
 ```bash
 python scripts/convert.py input.md -o output.pdf
 ```
 
 **Modern Template** (Eisvogel - recommended):
+
 ```bash
 python scripts/convert.py input.md -o output.pdf --template eisvogel
 ```
 
 **With Custom Variables**:
+
 ```bash
 python scripts/convert.py input.md -o output.pdf \
   --template eisvogel \
@@ -105,6 +114,7 @@ python scripts/convert.py input.md -o output.pdf \
 ```
 
 **With Citations** (requires .bib file):
+
 ```bash
 python scripts/convert.py input.md -o output.pdf \
   --template eisvogel \
@@ -159,6 +169,7 @@ bibliography: references.bib
 ```
 
 Then use:
+
 ```bash
 python scripts/convert.py document.md -o output.pdf --config pdf-config.yaml
 ```
@@ -168,6 +179,7 @@ python scripts/convert.py document.md -o output.pdf --config pdf-config.yaml
 ### Syntax Highlighting Themes
 
 Available themes (use with `--highlight-style`):
+
 - `pygments` (default)
 - `tango`
 - `espresso`
@@ -178,6 +190,7 @@ Available themes (use with `--highlight-style`):
 - `haddock`
 
 Preview themes:
+
 ```bash
 python scripts/convert.py --list-highlight-styles
 ```
@@ -187,14 +200,14 @@ python scripts/convert.py --list-highlight-styles
 Common Pandoc variables for Eisvogel template:
 
 ```yaml
-titlepage: true              # Add a title page
-titlepage-color: "1A1A1A"   # Title page background
+titlepage: true # Add a title page
+titlepage-color: "1A1A1A" # Title page background
 titlepage-text-color: "FFFFFF"
-toc: true                    # Include table of contents
-toc-own-page: true          # TOC on separate page
-linkcolor: blue             # Hyperlink color
-codeBlockCaptions: true     # Show code block captions
-listings: true              # Use listings package for code
+toc: true # Include table of contents
+toc-own-page: true # TOC on separate page
+linkcolor: blue # Hyperlink color
+codeBlockCaptions: true # Show code block captions
+listings: true # Use listings package for code
 ```
 
 ### Image Borders and Styling
@@ -210,6 +223,7 @@ python scripts/convert.py document.md -o output.pdf \
 ### BibTeX Citations
 
 1. Create a `.bib` file with your references:
+
    ```bibtex
    @article{knuth1984,
      title={Literate Programming},
@@ -220,11 +234,13 @@ python scripts/convert.py document.md -o output.pdf \
    ```
 
 2. Reference in Markdown:
+
    ```markdown
    As described by @knuth1984, literate programming...
    ```
 
 3. Convert with bibliography:
+
    ```bash
    python scripts/convert.py paper.md -o paper.pdf \
      --bibliography references.bib \
@@ -236,21 +252,25 @@ python scripts/convert.py document.md -o output.pdf \
 ### Example 1: Simple Document Conversion
 
 **Input** (`notes.md`):
+
 ```markdown
 # Meeting Notes
 
 ## Action Items
+
 - Review PR #123
 - Update documentation
 
 ## Code Review
+
 \`\`\`python
 def hello():
-    print("Hello, world!")
+print("Hello, world!")
 \`\`\`
 ```
 
 **Command**:
+
 ```bash
 python scripts/convert.py notes.md -o notes.pdf
 ```
@@ -260,6 +280,7 @@ python scripts/convert.py notes.md -o notes.pdf
 ### Example 2: Technical Documentation with Eisvogel
 
 **Input** (`api-docs.md`):
+
 ```markdown
 ---
 title: "API Documentation"
@@ -270,18 +291,20 @@ date: "2025-11-15"
 # REST API Reference
 
 ## Authentication
+
 All requests require Bearer token...
 
 \`\`\`javascript
 fetch('/api/users', {
-  headers: {
-    'Authorization': 'Bearer token123'
-  }
+headers: {
+'Authorization': 'Bearer token123'
+}
 })
 \`\`\`
 ```
 
 **Command**:
+
 ```bash
 python scripts/convert.py api-docs.md -o api-docs.pdf \
   --template eisvogel \
@@ -295,6 +318,7 @@ python scripts/convert.py api-docs.md -o api-docs.pdf \
 ### Example 3: Academic Paper with Citations
 
 **Input** (`paper.md`):
+
 ```markdown
 ---
 title: "Research Paper"
@@ -311,6 +335,7 @@ Recent work by @knuth1984 demonstrates...
 ```
 
 **References** (`references.bib`):
+
 ```bibtex
 @article{knuth1984,
   title={Literate Programming},
@@ -321,6 +346,7 @@ Recent work by @knuth1984 demonstrates...
 ```
 
 **Command**:
+
 ```bash
 python scripts/convert.py paper.md -o paper.pdf \
   --template eisvogel \
@@ -333,6 +359,7 @@ python scripts/convert.py paper.md -o paper.pdf \
 ### Example 4: Using Configuration File
 
 **Config** (`pdf-config.yaml`):
+
 ```yaml
 template: eisvogel
 variables:
@@ -344,6 +371,7 @@ highlight-style: tango
 ```
 
 **Command**:
+
 ```bash
 python scripts/convert.py document.md -o output.pdf --config pdf-config.yaml
 ```
@@ -353,25 +381,33 @@ python scripts/convert.py document.md -o output.pdf --config pdf-config.yaml
 ## Troubleshooting
 
 ### Missing Fonts Error
-```
+
+```text
 Error: Font 'ClearSans' not found
 ```
+
 **Solution**: Install texlive-fonts-extra package
 
 ### Template Not Found
-```
+
+```text
 Error: template eisvogel not found
 ```
+
 **Solution**: Verify template is in `~/.pandoc/templates/eisvogel.latex`
 
 ### Image Not Found
-```
+
+```text
 Warning: Could not find image 'path/to/image.png'
 ```
+
 **Solution**: Use absolute paths or paths relative to the markdown file
 
 ### LaTeX Errors
+
 If you see LaTeX compilation errors, run with verbose flag:
+
 ```bash
 python scripts/convert.py document.md -o output.pdf --verbose
 ```

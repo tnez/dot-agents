@@ -14,6 +14,7 @@ Install agent skills from local paths, GitHub repositories, or the agent-skills 
 ## When to Use This Skill
 
 Use install-skill when you need to:
+
 - Add a skill from the agent-skills repository to your project
 - Install a custom skill from a local directory
 - Fetch and install a skill from a GitHub repository
@@ -27,6 +28,7 @@ Use install-skill when you need to:
 Determine where the skill is located:
 
 **Shorthand (from agent-skills repository)**:
+
 - `meta/skill-creator`
 - `meta/skill-tester`
 - `meta/skill-evaluator`
@@ -34,11 +36,13 @@ Determine where the skill is located:
 - `examples/simple-task`
 
 **Local Path**:
+
 - Absolute: `/path/to/skill-directory`
 - Relative: `../skills/my-skill`
 - Home: `~/custom-skills/my-skill`
 
 **GitHub URL**:
+
 - Full tree URL: `https://github.com/user/repo/tree/main/path/to/skill`
 
 ### Step 2: Determine Target Directory
@@ -46,6 +50,7 @@ Determine where the skill is located:
 The installation script automatically discovers the skills directory by searching for existing `SKILL.md` files.
 
 **Discovery Priority**:
+
 1. `.agents/skills/` (project-level, agent-agnostic) - preferred
 2. `.claude/skills/` (project-level, Claude-specific)
 3. `~/.agents/skills/` (global, agent-agnostic)
@@ -55,6 +60,7 @@ If no existing skills are found, the script will prompt you to choose a location
 
 **Manual Override**:
 You can specify the target directory as a second argument:
+
 ```bash
 bash scripts/install.sh <skill-source> <target-directory>
 ```
@@ -62,11 +68,13 @@ bash scripts/install.sh <skill-source> <target-directory>
 ### Step 3: Run the Installation Script
 
 Check available options:
+
 ```bash
 bash scripts/install.sh --help
 ```
 
 Install a skill:
+
 ```bash
 bash scripts/install.sh <skill-source>
 ```
@@ -74,12 +82,14 @@ bash scripts/install.sh <skill-source>
 ### Step 4: Verify Installation
 
 Check that the skill was installed correctly:
+
 ```bash
 ls -la <target-directory>
 cat <target-directory>/<skill-name>/SKILL.md
 ```
 
 Validate the installed skill:
+
 ```bash
 python /path/to/skill-tester/scripts/test_skill.py <target-directory>/<skill-name>
 ```
@@ -89,22 +99,26 @@ python /path/to/skill-tester/scripts/test_skill.py <target-directory>/<skill-nam
 ### Basic Commands
 
 **Show Help**:
+
 ```bash
 bash scripts/install.sh --help
 ```
 
 **Show Version**:
+
 ```bash
 bash scripts/install.sh --version
 ```
 
 **Install from Shorthand**:
+
 ```bash
 bash scripts/install.sh meta/skill-creator
 bash scripts/install.sh examples/get-weather
 ```
 
 **Install from Local Path**:
+
 ```bash
 bash scripts/install.sh /path/to/custom-skill
 bash scripts/install.sh ../skills/my-skill
@@ -112,11 +126,13 @@ bash scripts/install.sh ~/custom-skills/my-skill
 ```
 
 **Install from GitHub**:
+
 ```bash
 bash scripts/install.sh https://github.com/user/repo/tree/main/skills/my-skill
 ```
 
 **Specify Target Directory**:
+
 ```bash
 bash scripts/install.sh meta/skill-creator ~/.agents/skills
 bash scripts/install.sh examples/get-weather ./.agents/skills
@@ -129,23 +145,28 @@ bash scripts/install.sh examples/get-weather ./.agents/skills
 **Scenario**: Setting up skills in a new project
 
 **Steps**:
+
 1. Create skills directory:
+
    ```bash
    mkdir -p .agents/skills
    ```
 
 2. Install skill-creator:
+
    ```bash
    bash scripts/install.sh meta/skill-creator
    ```
 
 3. Verify installation:
+
    ```bash
    ls -la .agents/skills/skill-creator
    ```
 
 **Expected Output**:
-```
+
+```text
 ℹ Discovering skills installation directory...
 ⚠ Found empty skills directory: ./.agents/skills
 ℹ Target directory: ./.agents/skills
@@ -159,6 +180,7 @@ bash scripts/install.sh examples/get-weather ./.agents/skills
 **Scenario**: Installing several skills from the agent-skills repository
 
 **Steps**:
+
 ```bash
 bash scripts/install.sh meta/skill-creator
 bash scripts/install.sh meta/skill-tester
@@ -173,15 +195,18 @@ bash scripts/install.sh examples/get-weather
 **Scenario**: Installing a skill you developed locally
 
 **Steps**:
+
 1. Develop skill at `~/my-skills/custom-analyzer/`
 2. Ensure it has `SKILL.md` with proper frontmatter
 3. Install:
+
    ```bash
    bash scripts/install.sh ~/my-skills/custom-analyzer
    ```
 
 **Expected Output**:
-```
+
+```text
 ℹ Discovering skills installation directory...
 ℹ Found skills in: ./.agents/skills
 ℹ Target directory: ./.agents/skills
@@ -194,11 +219,13 @@ bash scripts/install.sh examples/get-weather
 **Scenario**: Installing a community skill from GitHub
 
 **Steps**:
+
 ```bash
 bash scripts/install.sh https://github.com/user/repo/tree/main/skills/awesome-skill
 ```
 
 **Process**:
+
 1. Script clones the repository (sparse checkout)
 2. Extracts the skill directory
 3. Validates SKILL.md exists
@@ -209,12 +236,14 @@ bash scripts/install.sh https://github.com/user/repo/tree/main/skills/awesome-sk
 **Scenario**: Updating a skill that's already installed
 
 **Steps**:
+
 ```bash
 bash scripts/install.sh meta/skill-creator
 ```
 
 **Interactive Prompt**:
-```
+
+```text
 ⚠ Skill already exists: ./.agents/skills/skill-creator
 Overwrite? [y/N]:
 ```
@@ -226,12 +255,14 @@ Choose `y` to update, `N` to cancel.
 The script searches for existing `SKILL.md` files in common locations to infer where skills should be installed.
 
 **Search Process**:
+
 1. Search `./.agents/skills/*/SKILL.md`
 2. Search `./.claude/skills/*/SKILL.md`
 3. Search `~/.agents/skills/*/SKILL.md`
 4. Search `~/.claude/skills/*/SKILL.md`
 
 **Decision Logic**:
+
 - If skills found in `.agents/skills/` → use that
 - If only found in `.claude/skills/` → use that
 - If found in multiple locations → use highest priority (agent-agnostic over Claude-specific, local over global)
@@ -271,27 +302,35 @@ The skill is installed using this name, **not** the source directory name. This 
 ## Error Handling
 
 **Source Not Found**:
-```
+
+```text
 ✗ Source directory does not exist: /path/to/skill
 ```
+
 Check path spelling and existence.
 
 **SKILL.md Missing**:
-```
+
+```text
 ✗ SKILL.md not found in: /path/to/skill
 ```
+
 Source must be a valid skill directory.
 
 **Clone Failed**:
-```
+
+```text
 ✗ Failed to clone repository: https://github.com/user/repo
 ```
+
 Check URL and network connection.
 
 **Name Extraction Failed**:
-```
+
+```text
 ✗ Could not extract skill name from SKILL.md
 ```
+
 SKILL.md must have valid YAML frontmatter with `name:` field.
 
 ## Dependencies
@@ -308,6 +347,7 @@ Standard utilities available on macOS and Linux.
 **After Installation**:
 
 1. **Validate with skill-tester**:
+
    ```bash
    python skill-tester/scripts/test_skill.py .agents/skills/new-skill
    ```
@@ -320,24 +360,24 @@ Standard utilities available on macOS and Linux.
 
 ## Troubleshooting
 
-**Q: Script can't find agent-skills repository**
+### Q: Script can't find agent-skills repository
 
 A: Install from GitHub URL or clone the repository locally first.
 
-**Q: Installation directory not detected**
+### Q: Installation directory not detected
 
 A: Manually specify target directory as second argument or create `.agents/skills/` first.
 
-**Q: Skill name doesn't match directory**
+### Q: Skill name doesn't match directory
 
 A: This is expected. The script uses the `name` field from SKILL.md YAML frontmatter.
 
-**Q: Permission denied**
+### Q: Permission denied
 
 A: Check write permissions on target directory or use a different location.
 
 ## Resources
 
 - Installation script: `scripts/install.sh`
-- Agent Skills Repository: https://github.com/tnez/agent-skills
-- Agent Skills Specification: https://github.com/anthropics/skills/blob/main/agent_skills_spec.md
+- Agent Skills Repository: <https://github.com/tnez/agent-skills>
+- Agent Skills Specification: <https://github.com/anthropics/skills/blob/main/agent_skills_spec.md>

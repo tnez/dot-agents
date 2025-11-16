@@ -9,7 +9,8 @@ This document provides concrete examples of how agents and humans use the skills
 ### Steps
 
 1. **Invoke skill-creator**
-   ```
+
+   ```text
    User: "I need to create a skill for analyzing code complexity"
    Agent: *loads skill-creator skill*
    ```
@@ -51,6 +52,7 @@ This document provides concrete examples of how agents and humans use the skills
 ### Steps
 
 1. **Navigate to skill directory**
+
    ```bash
    cd agent-skills/main/meta/skill-creator
    ```
@@ -70,7 +72,8 @@ This document provides concrete examples of how agents and humans use the skills
    - ✓ No hardcoded credentials found
 
 4. **Review test report**
-   ```
+
+   ```text
    PASS: YAML frontmatter valid
    PASS: Directory name matches 'skill-creator'
    PASS: Description is clear and actionable
@@ -116,7 +119,8 @@ This document provides concrete examples of how agents and humans use the skills
    - Is it too broad or monolithic?
 
 3. **Review evaluation report**
-   ```
+
+   ```text
    Skill: code-complexity-analyzer
 
    Clarity: 4/5
@@ -158,30 +162,36 @@ This document provides concrete examples of how agents and humans use the skills
 ### Phases
 
 #### Phase 1: Creation
+
 - Use **skill-creator** to scaffold
 - Write initial instructions and examples
 - Add supporting resources (scripts, templates)
 
 #### Phase 2: Validation
+
 - Use **skill-tester** to validate structure
 - Fix any spec violations
 - Ensure all files referenced exist
 
 #### Phase 3: Evaluation
+
 - Use **skill-evaluator** for quality check
 - Identify improvement areas
 - Score against rubric
 
 #### Phase 4: Refinement
+
 - Address evaluation feedback
 - Add more examples if needed
 - Clarify instructions
 
 #### Phase 5: Re-test
+
 - Run skill-tester again to ensure still valid
 - Confirm no regressions
 
 #### Phase 6: Final Evaluation
+
 - Re-run skill-evaluator
 - Compare scores to initial evaluation
 - Ensure quality threshold met (e.g., ≥15/20)
@@ -209,6 +219,7 @@ This document provides concrete examples of how agents and humans use the skills
 5. **Iterate**: Improve skill-evaluator based on its own recommendations
 
 **Benefits**:
+
 - Validates meta-skills work correctly
 - Ensures meta-skills meet their own quality standards
 - Surfaces inconsistencies or gaps
@@ -217,12 +228,12 @@ This document provides concrete examples of how agents and humans use the skills
 
 ## Quick Reference
 
-| Task | Skill to Use | Key Output |
-|------|--------------|------------|
-| Create new skill | skill-creator | Scaffolded directory with SKILL.md |
-| Validate structure | skill-tester | Pass/fail validation report |
-| Assess quality | skill-evaluator | Rubric scores and recommendations |
-| Full development | All three in sequence | Production-ready skill |
+| Task               | Skill to Use          | Key Output                         |
+| ------------------ | --------------------- | ---------------------------------- |
+| Create new skill   | skill-creator         | Scaffolded directory with SKILL.md |
+| Validate structure | skill-tester          | Pass/fail validation report        |
+| Assess quality     | skill-evaluator       | Rubric scores and recommendations  |
+| Full development   | All three in sequence | Production-ready skill             |
 
 ## Tips
 

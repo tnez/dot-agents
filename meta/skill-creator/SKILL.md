@@ -11,6 +11,7 @@ Create well-structured agent skills that comply with the Agent Skills Specificat
 ## When to Use This Skill
 
 Use skill-creator when you need to:
+
 - Create a new skill from scratch
 - Scaffold the directory structure for a skill
 - Generate valid SKILL.md with proper YAML frontmatter
@@ -21,13 +22,15 @@ Use skill-creator when you need to:
 
 ### Phase 1: Planning
 
-**Gather Requirements**
+#### Gather Requirements
+
 1. Ask for the skill's purpose and scope
 2. Determine if scripts, templates, or assets are needed
 3. Identify dependencies (Python packages, npm modules)
 4. Clarify when the skill should be used
 
-**Key Questions**
+#### Key Questions
+
 - What specific task does this skill address?
 - What are the inputs and expected outputs?
 - Does it need executable code (scripts)?
@@ -36,28 +39,32 @@ Use skill-creator when you need to:
 
 ### Phase 2: Naming and Structure
 
-**Generate Skill Name**
+#### Generate Skill Name
+
 1. Use hyphen-case format (lowercase, hyphens only)
 2. Maximum 64 characters
 3. Descriptive and specific
 4. Examples: `code-complexity-analyzer`, `api-doc-generator`
 
-**Invalid Names**
+#### Invalid Names
+
 - ❌ `Code_Analyzer` (underscores)
 - ❌ `codeAnalyzer` (camelCase)
 - ❌ `CODE-ANALYZER` (uppercase)
 - ✓ `code-analyzer` (correct)
 
-**Determine Directory Structure**
+#### Determine Directory Structure
 
 Minimal (instructions only):
-```
+
+```text
 skill-name/
 └── SKILL.md
 ```
 
 With scripts:
-```
+
+```text
 skill-name/
 ├── SKILL.md
 └── scripts/
@@ -65,7 +72,8 @@ skill-name/
 ```
 
 Full structure:
-```
+
+```text
 skill-name/
 ├── SKILL.md
 ├── scripts/
@@ -80,9 +88,10 @@ skill-name/
 
 ### Phase 3: Generate SKILL.md
 
-**Create YAML Frontmatter**
+#### Create YAML Frontmatter
 
 Required fields:
+
 ```yaml
 ---
 name: skill-name
@@ -91,6 +100,7 @@ description: Clear explanation of what the skill does and when Claude should use
 ```
 
 With optional fields:
+
 ```yaml
 ---
 name: skill-name
@@ -106,16 +116,18 @@ metadata:
 ---
 ```
 
-**Description Guidelines**
+#### Description Guidelines
+
 - ~200 characters (max 1024)
 - Explain WHAT the skill does
 - Explain WHEN to use it
 - Be specific and actionable
 - Example: "Analyze code complexity using cyclomatic complexity metrics. Use when assessing code maintainability or identifying refactoring candidates."
 
-**Write Skill Instructions**
+#### Write Skill Instructions
 
 Use imperative language:
+
 ```markdown
 # Skill Name
 
@@ -128,19 +140,23 @@ List specific scenarios...
 ## Process
 
 ### Step 1: Action
+
 Instructions in imperative form...
 
 ### Step 2: Action
+
 More instructions...
 
 ## Examples
 
 ### Example 1: Concrete Scenario
+
 Input: ...
 Expected Output: ...
 ```
 
-**Best Practices**
+#### Best Practices
+
 - Keep under 5,000 words
 - Use concrete examples
 - Reference bundled resources by relative path (e.g., templates/my-template.md)
@@ -149,13 +165,15 @@ Expected Output: ...
 
 ### Phase 4: Create Supporting Files
 
-**Scripts**
+#### Scripts
+
 - Place in `scripts/` directory
 - Include usage instructions in SKILL.md
 - Remind users to run `script --help` first
 - Treat scripts as black boxes
 
 Example reference in SKILL.md:
+
 ```markdown
 Run the validation script:
 \`\`\`bash
@@ -164,18 +182,20 @@ python scripts/validate.py --input data.json
 \`\`\`
 ```
 
-**Templates**
+#### Templates
+
 - Place in `templates/` directory
 - Reference from SKILL.md
 - Provide clear descriptions of when to use each template
 
-**Assets**
+#### Assets
+
 - Use for output files or resources
 - Create subdirectories for organization
 
 ### Phase 5: Validation
 
-**Run Validation Checks**
+#### Run Validation Checks
 
 1. **Name validation**
    - Directory name matches YAML `name` field exactly
@@ -198,14 +218,16 @@ python scripts/validate.py --input data.json
    - Examples are concrete
    - Word count reasonable (<5,000)
 
-**Use Validation Script**
+#### Use Validation Script
+
 ```bash
 python scripts/validate_skill.py /path/to/skill-name
 ```
 
 ### Phase 6: Documentation
 
-**In SKILL.md, Include**
+#### In SKILL.md, Include
+
 - Clear title and introduction
 - "When to Use This Skill" section
 - Step-by-step process
@@ -213,7 +235,8 @@ python scripts/validate_skill.py /path/to/skill-name
 - Dependencies clearly stated
 - References to bundled resources
 
-**Avoid**
+#### Avoid
+
 - Redundant explanations
 - Vague instructions
 - Implementation details (focus on what to do, not how)
@@ -224,11 +247,13 @@ python scripts/validate_skill.py /path/to/skill-name
 Use these templates as starting points:
 
 ### Basic Skill Template
+
 ```bash
 cat templates/basic-skill.md
 ```
 
 ### Skill with Scripts Template
+
 ```bash
 cat templates/skill-with-scripts.md
 ```
@@ -236,11 +261,13 @@ cat templates/skill-with-scripts.md
 ## Validation Script
 
 Validate a skill's structure:
+
 ```bash
 python scripts/validate_skill.py /path/to/skill-directory
 ```
 
 The script checks:
+
 - YAML frontmatter validity
 - Name format and matching
 - Required fields present
@@ -254,9 +281,11 @@ The script checks:
 **Input**: "Create a skill for applying brand guidelines"
 
 **Steps**:
+
 1. Name: `brand-guidelines`
 2. Structure: Minimal (SKILL.md only)
 3. SKILL.md:
+
 ```yaml
 ---
 name: brand-guidelines
@@ -286,6 +315,7 @@ Apply consistent brand visual identity.
 **Input**: "Create a skill for testing web applications with Playwright"
 
 **Steps**:
+
 1. Name: `webapp-testing`
 2. Structure: With scripts
 3. Create helper script in scripts/ directory
@@ -303,6 +333,7 @@ Apply consistent brand visual identity.
 ## Validation Checklist
 
 Before finalizing a skill:
+
 - [ ] Directory name is hyphen-case, ≤64 chars
 - [ ] Directory name matches YAML `name` field
 - [ ] YAML frontmatter is valid
@@ -316,6 +347,6 @@ Before finalizing a skill:
 
 ## Resources
 
-- Agent Skills Specification: https://github.com/anthropics/skills/blob/main/agent_skills_spec.md
+- Agent Skills Specification: <https://github.com/anthropics/skills/blob/main/agent_skills_spec.md>
 - Validation script: `scripts/validate_skill.py`
 - Templates: `templates/` directory

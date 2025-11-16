@@ -7,12 +7,13 @@ A curated collection of agent skills for Claude, focusing on meta-skills for ski
 Skills are folders of instructions, scripts, and resources that Claude loads dynamically to improve performance on specialized tasks. They function as "onboarding guides" that transform Claude into specialized agents by bundling procedural knowledge, workflows, and tool integrations.
 
 Each skill is a self-contained directory with:
+
 - `SKILL.md` - Required markdown file with YAML frontmatter and instructions
 - Optional supporting files (scripts, templates, assets, references)
 
 ## Repository Structure
 
-```
+```text
 agent-skills/
 ├── meta/                  # Meta-skills for skill development
 │   ├── skill-creator/     # Create and scaffold new skills
@@ -27,6 +28,7 @@ agent-skills/
 ### For Agents
 
 Skills are loaded automatically when relevant to your task. Each skill provides:
+
 - Clear instructions for when and how to use it
 - Templates and examples
 - Validation and testing tools
@@ -41,19 +43,25 @@ Skills are loaded automatically when relevant to your task. Each skill provides:
 ## Meta-Skills
 
 ### skill-creator
+
 Scaffold new skills with proper structure and validation. Generates:
+
 - SKILL.md with valid YAML frontmatter
 - Directory structure (scripts, templates, assets)
 - Validation checks for spec compliance
 
 ### skill-tester
+
 Validate skills against the specification. Tests:
+
 - YAML frontmatter correctness
 - File references and structure
 - Common issues and anti-patterns
 
 ### skill-evaluator
+
 Assess skill quality using rubric-based evaluation. Evaluates:
+
 - Clarity and actionability
 - Completeness and focus
 - Examples and documentation quality
@@ -75,6 +83,7 @@ Imperative instructions for Claude to follow...
 ```
 
 **Requirements**:
+
 - Skill directory name must match `name` field exactly
 - Use hyphen-case for skill names
 - Keep description clear (~200 characters)
@@ -83,6 +92,7 @@ Imperative instructions for Claude to follow...
 ## Contributing
 
 When creating new skills:
+
 1. Use `skill-creator` to scaffold the structure
 2. Test with `skill-tester` to ensure spec compliance
 3. Evaluate with `skill-evaluator` for quality assurance

@@ -14,6 +14,7 @@ Assess agent skill quality through comprehensive rubric-based evaluation.
 ## When to Use This Skill
 
 Use skill-evaluator when you need to:
+
 - Evaluate a new skill's quality before deployment
 - Assess an existing skill's effectiveness
 - Identify specific improvement opportunities
@@ -25,13 +26,15 @@ Use skill-evaluator when you need to:
 
 ### Phase 1: Preparation
 
-**Gather Context**
+#### Gather Context
+
 1. Identify the skill to evaluate
 2. Read the complete SKILL.md
 3. Review any bundled resources (scripts, templates)
 4. Understand the skill's intended purpose
 
-**Load Evaluation Rubric**
+#### Load Evaluation Rubric
+
 ```bash
 cat templates/evaluation-rubric.md
 ```
@@ -43,6 +46,7 @@ Evaluate the skill across four dimensions:
 #### 1. Clarity (1-5)
 
 **What to Assess**:
+
 - Are instructions imperative and actionable?
 - Is the description clear about WHAT the skill does?
 - Is the description clear about WHEN to use it?
@@ -50,6 +54,7 @@ Evaluate the skill across four dimensions:
 - Is the language precise and unambiguous?
 
 **Scoring Guide**:
+
 - **5**: Exceptionally clear, every instruction actionable, perfect balance of detail
 - **4**: Very clear, minor improvements possible
 - **3**: Generally clear, some vague sections
@@ -57,6 +62,7 @@ Evaluate the skill across four dimensions:
 - **1**: Confusing, missing critical information
 
 **Questions to Ask**:
+
 - Can someone unfamiliar with the domain understand this?
 - Are all steps clearly defined?
 - Is there any ambiguous language?
@@ -64,6 +70,7 @@ Evaluate the skill across four dimensions:
 #### 2. Completeness (1-5)
 
 **What to Assess**:
+
 - Are all necessary steps documented?
 - Are dependencies clearly stated?
 - Are edge cases addressed?
@@ -71,6 +78,7 @@ Evaluate the skill across four dimensions:
 - Are prerequisites listed?
 
 **Scoring Guide**:
+
 - **5**: Comprehensive, covers all scenarios, no gaps
 - **4**: Very complete, minor edge cases missing
 - **3**: Generally complete, some steps assumed
@@ -78,6 +86,7 @@ Evaluate the skill across four dimensions:
 - **1**: Incomplete, critical steps missing
 
 **Questions to Ask**:
+
 - Could someone execute this skill without asking questions?
 - Are dependencies explicit?
 - What happens when things go wrong?
@@ -85,6 +94,7 @@ Evaluate the skill across four dimensions:
 #### 3. Examples (1-5)
 
 **What to Assess**:
+
 - Are concrete examples provided?
 - Do examples show expected outcomes?
 - Are multiple scenarios covered?
@@ -92,6 +102,7 @@ Evaluate the skill across four dimensions:
 - Are examples realistic and practical?
 
 **Scoring Guide**:
+
 - **5**: Excellent examples, multiple scenarios, clear outcomes
 - **4**: Good examples, covers main use cases
 - **3**: Basic examples present, could be more detailed
@@ -99,6 +110,7 @@ Evaluate the skill across four dimensions:
 - **1**: No examples or examples are confusing
 
 **Questions to Ask**:
+
 - Do examples demonstrate the skill in action?
 - Are edge cases illustrated?
 - Can users adapt examples to their needs?
@@ -106,6 +118,7 @@ Evaluate the skill across four dimensions:
 #### 4. Focus (1-5)
 
 **What to Assess**:
+
 - Does the skill address a specific, well-defined task?
 - Is it too broad or monolithic?
 - Does it try to do too much?
@@ -113,6 +126,7 @@ Evaluate the skill across four dimensions:
 - Are responsibilities clear?
 
 **Scoring Guide**:
+
 - **5**: Perfectly focused, single clear purpose
 - **4**: Well-focused, minor scope creep
 - **3**: Generally focused, some unnecessary breadth
@@ -120,23 +134,28 @@ Evaluate the skill across four dimensions:
 - **1**: Unfocused, unclear purpose
 
 **Questions to Ask**:
+
 - Can you describe the skill's purpose in one sentence?
 - Should this be split into multiple skills?
 - Is anything out of scope included?
 
 ### Phase 3: Scoring
 
-**Calculate Scores**
+#### Calculate Scores
 
 For each dimension:
+
 1. Review the assessment criteria
 2. Assign a score (1-5)
 3. Document specific observations
 4. Note evidence supporting the score
 
-**Total Score**: Sum all dimensions (max: 20)
+#### Total Score
 
-**Quality Thresholds**:
+Sum all dimensions (max: 20)
+
+#### Quality Thresholds
+
 - **18-20**: Excellent - Production ready
 - **15-17**: Strong - Minor improvements recommended
 - **12-14**: Adequate - Needs refinement
@@ -145,9 +164,10 @@ For each dimension:
 
 ### Phase 4: Recommendations
 
-**Generate Actionable Feedback**
+#### Generate Actionable Feedback
 
 For each dimension with score <5:
+
 1. Identify specific weaknesses
 2. Provide concrete improvement suggestions
 3. Prioritize recommendations (high/medium/low)
@@ -155,32 +175,38 @@ For each dimension with score <5:
 **Example Recommendations**:
 
 Clarity (3/5):
+
 - High: Rewrite Phase 2 instructions in imperative form
 - Medium: Define technical term "API endpoint" in context
 - Low: Add section headings for better scanning
 
 Completeness (4/5):
+
 - Medium: Add error handling section
 - Low: List Python version requirement
 
 Examples (3/5):
+
 - High: Add 2 more concrete examples showing different scenarios
 - Medium: Include expected output for Example 1
 - Medium: Add edge case example (empty input)
 
 Focus (5/5):
+
 - No recommendations - well-focused
 
 ### Phase 5: Generate Report
 
-**Create Evaluation Report**
+#### Create Evaluation Report
 
 Use the rubric template:
+
 ```bash
 cat templates/evaluation-rubric.md
 ```
 
 Fill in:
+
 - Skill name and date
 - Scores for each dimension
 - Total score and quality level
@@ -188,7 +214,8 @@ Fill in:
 - Prioritized recommendations
 - Overall assessment
 
-**Report Structure**:
+#### Report Structure
+
 ```markdown
 # Skill Evaluation Report
 
@@ -198,13 +225,13 @@ Fill in:
 
 ## Scores
 
-| Dimension | Score | Notes |
-|-----------|-------|-------|
-| Clarity | 4/5 | Very clear, minor improvements |
-| Completeness | 5/5 | Comprehensive coverage |
-| Examples | 3/5 | Needs more concrete examples |
-| Focus | 5/5 | Well-scoped and focused |
-| **Total** | **17/20** | **Strong** |
+| Dimension    | Score     | Notes                          |
+| ------------ | --------- | ------------------------------ |
+| Clarity      | 4/5       | Very clear, minor improvements |
+| Completeness | 5/5       | Comprehensive coverage         |
+| Examples     | 3/5       | Needs more concrete examples   |
+| Focus        | 5/5       | Well-scoped and focused        |
+| **Total**    | **17/20** | **Strong**                     |
 
 ## Detailed Assessment
 
@@ -221,7 +248,8 @@ Fill in:
 
 ### Phase 6: Iterate
 
-**Support Improvement Cycle**
+#### Support Improvement Cycle
+
 1. Share evaluation report with skill author
 2. Implement high-priority recommendations
 3. Re-evaluate after changes
@@ -231,11 +259,13 @@ Fill in:
 ## Evaluation Rubric
 
 Use the bundled rubric template:
+
 ```bash
 cat templates/evaluation-rubric.md
 ```
 
 The template provides:
+
 - Detailed scoring criteria for each dimension
 - Example assessments
 - Report structure
@@ -248,11 +278,13 @@ The template provides:
 **Purpose**: Semi-automated evaluation assistance
 
 **Usage**:
+
 ```bash
 python scripts/run_evaluation.py /path/to/skill-directory
 ```
 
 **Features**:
+
 - Extracts skill metadata
 - Calculates word counts
 - Identifies missing sections
@@ -269,31 +301,36 @@ python scripts/run_evaluation.py /path/to/skill-directory
 
 **Assessment**:
 
-**Clarity: 5/5**
+#### Clarity: 5/5
+
 - Description perfectly explains what and when
 - Instructions are imperative and actionable
 - Technical terms clear from context
 - Language is precise
 
-**Completeness: 5/5**
+#### Completeness: 5/5
+
 - All necessary information present
 - Color codes, typography, spacing all specified
 - No external dependencies needed
 - Self-contained and complete
 
-**Examples: 4/5**
+#### Examples: 4/5
+
 - Color examples provided with hex codes
 - Typography examples with sizes and weights
 - Could benefit from visual mockup examples
 
-**Focus: 5/5**
+#### Focus: 5/5
+
 - Single clear purpose: brand guidelines
 - Not trying to do design work, just provide standards
 - Perfect scope
 
-**Total: 19/20 (Excellent)**
+#### Total: 19/20 (Excellent)
 
 **Recommendations**:
+
 - Low: Add 1-2 visual mockup examples showing guidelines applied
 
 ### Example 2: Skill Needing Improvement
@@ -302,43 +339,50 @@ python scripts/run_evaluation.py /path/to/skill-directory
 
 **Assessment**:
 
-**Clarity: 2/5**
+#### Clarity: 2/5
+
 - Description vague: "Helps with code"
 - Instructions use passive voice
 - Many undefined terms
 - Ambiguous steps
 
-**Completeness: 3/5**
+#### Completeness: 3/5
+
 - Missing dependency information
 - No error handling guidance
 - Prerequisites not stated
 - Some steps documented
 
-**Examples: 2/5**
+#### Examples: 2/5
+
 - Only one example provided
 - Example doesn't show expected output
 - No edge cases illustrated
 
-**Focus: 2/5**
+#### Focus: 2/5
+
 - Tries to do too much: formatting, analysis, documentation
 - Should be 3 separate skills
 - Unclear primary purpose
 
-**Total: 9/20 (Weak)**
+#### Total: 9/20 (Weak)
 
 **Recommendations**:
 
 High Priority:
+
 - Split into 3 focused skills: code-formatter, code-analyzer, code-documenter
 - Rewrite description to explain specific purpose and when to use
 - Rewrite all instructions in imperative form
 
 Medium Priority:
+
 - Add 3-4 concrete examples with inputs and outputs
 - Document all dependencies (Python version, packages)
 - Add error handling section
 
 Low Priority:
+
 - Define all technical terms in context
 - Add edge case examples
 
@@ -348,6 +392,7 @@ Low Priority:
 **After Improvements**: 17/20 (Strong)
 
 **Changes Made**:
+
 - Added 3 concrete examples (+2 points)
 - Clarified description to explain when to use (+1 point)
 - Rewrote vague instructions in imperative form (+2 points)
@@ -357,21 +402,25 @@ Low Priority:
 ## Best Practices
 
 ### Be Objective
+
 - Use the rubric consistently
 - Base scores on evidence, not feelings
 - Compare against criteria, not other skills
 
 ### Be Specific
+
 - Document exact issues
 - Provide concrete examples of problems
 - Suggest specific improvements
 
 ### Be Constructive
+
 - Focus on helping improve the skill
 - Acknowledge what works well
 - Prioritize feedback (don't overwhelm)
 
 ### Be Thorough
+
 - Read the entire skill before scoring
 - Check all bundled resources
 - Consider real-world usage
@@ -379,29 +428,35 @@ Low Priority:
 ## Common Evaluation Pitfalls
 
 ### Leniency Bias
+
 ❌ Scoring too high because skill "seems okay"
 ✓ Compare against explicit rubric criteria
 
 ### Recency Effect
+
 ❌ Letting recent sections heavily influence score
 ✓ Evaluate each dimension independently
 
 ### Halo Effect
+
 ❌ One strong area influences scoring of others
 ✓ Score each dimension separately
 
 ### Comparison Bias
+
 ❌ Scoring relative to other skills
 ✓ Score against absolute rubric criteria
 
 ## Quality Gates
 
 **Minimum Thresholds**:
+
 - **For deployment**: ≥15/20 total, no dimension <3
 - **For production**: ≥18/20 total, all dimensions ≥4
 - **Best practice**: All dimensions ≥4
 
 **Red Flags** (immediate revision needed):
+
 - Any dimension scored 1
 - Total score <12
 - Missing examples entirely
@@ -410,6 +465,7 @@ Low Priority:
 ## Evaluation Checklist
 
 Before finalizing evaluation:
+
 - [ ] Read complete SKILL.md
 - [ ] Reviewed all bundled resources
 - [ ] Scored all four dimensions
@@ -422,11 +478,13 @@ Before finalizing evaluation:
 ## Templates
 
 ### Evaluation Rubric Template
+
 ```bash
 cat templates/evaluation-rubric.md
 ```
 
 Provides:
+
 - Scoring criteria details
 - Report structure
 - Example assessments
@@ -435,4 +493,4 @@ Provides:
 
 - Evaluation script: `scripts/run_evaluation.py`
 - Rubric template: `templates/evaluation-rubric.md`
-- Agent Skills Specification: https://github.com/anthropics/skills/blob/main/agent_skills_spec.md
+- Agent Skills Specification: <https://github.com/anthropics/skills/blob/main/agent_skills_spec.md>
