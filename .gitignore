@@ -19,6 +19,11 @@ yarn-debug.log*
 yarn-error.log*
 package-lock.json
 yarn.lock
+pnpm-lock.yaml
+
+# TypeScript
+dist/
+*.tsbuildinfo
 
 # IDE
 .vscode/
@@ -47,3 +52,8 @@ htmlcov/
 
 # Build artifacts
 *.zip
+
+# Sessions (workflow execution logs)
+sessions/**/*.log
+sessions/**/*.json
+!sessions/README.md

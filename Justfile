@@ -1,9 +1,29 @@
-# Agent Skills - Task Runner
+# dot-agents - Task Runner
 # Run `just --list` to see all available commands
 
 # Default recipe to display help
 default:
     @just --list
+
+# Install dependencies
+install:
+    npm install
+
+# Build all packages
+build:
+    npm run build
+
+# Build and watch for changes
+dev:
+    npm run dev
+
+# Run the dot-agents CLI
+cli *args:
+    node packages/cli/dist/index.js {{args}}
+
+# Clean build artifacts
+clean-build:
+    npm run clean
 
 # Run all linters
 lint: lint-markdown lint-prettier
