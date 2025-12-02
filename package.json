@@ -1,0 +1,26 @@
+{
+  "name": "dot-agents",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A framework for building agentic workflows with personas and scheduled execution",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @dot-agents/core && npm run build -w @dot-agents/cli",
+    "dev": "npm run dev --workspaces --if-present",
+    "typecheck": "tsc --build",
+    "clean": "rm -rf packages/*/dist packages/*/*.tsbuildinfo",
+    "dot-agents": "node packages/cli/dist/index.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/tnez/dot-agents.git"
+  },
+  "author": "tnez",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

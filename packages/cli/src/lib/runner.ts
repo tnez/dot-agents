@@ -1,0 +1,266 @@
+import { execa, type ResultPromise } from "execa";
+import { mkdir, writeFile, access } from "node:fs/promises";
+import { join, dirname } from "node:path";
+import {
+  type Workflow,
+  type ResolvedPersona,
+  type ExecutionResult,
+  type ExecutionContext,
+  createExecutionContext,
+  processTemplate,
+  expandVariables,
+  getInputDefaults,
+} from "@dot-agents/core";
+
+/**
+ * Parse duration string to milliseconds
+ * Supports: "30s", "5m", "1h"
+ */
+export function parseDuration(duration: string): number {
+  const match = duration.match(/^(\d+)(s|m|h)$/);
+  if (!match) {
+    throw new Error(`Invalid duration format: ${duration}`);
+  }
+
+  const [, value, unit] = match;
+  const num = parseInt(value, 10);
+
+  switch (unit) {
+    case "s":
+      return num * 1000;
+    case "m":
+      return num * 60 * 1000;
+    case "h":
+      return num * 60 * 60 * 1000;
+    default:
+      throw new Error(`Unknown duration unit: ${unit}`);
+  }
+}
+
+/**
+ * Options for running a workflow
+ */
+export interface RunOptions {
+  /** Input values (override defaults) */
+  inputs?: Record<string, string | number | boolean>;
+  /** Working directory override */
+  workingDir?: string;
+  /** Environment variable overrides */
+  env?: Record<string, string>;
+  /** Timeout override */
+  timeout?: string;
+  /** Dry run - don't actually execute */
+  dryRun?: boolean;
+}
+
+/**
+ * Build the full prompt for the agent
+ */
+export function buildPrompt(
+  workflow: Workflow,
+  persona: ResolvedPersona,
+  context: ExecutionContext,
+  inputs: Record<string, unknown>
+): string {
+  const parts: string[] = [];
+
+  // Add persona system prompt if present
+  if (persona.prompt) {
+    const expandedPrompt = processTemplate(
+      persona.prompt,
+      { ...context, ...inputs },
+      persona.env
+    );
+    parts.push(expandedPrompt);
+    parts.push("\n---\n");
+  }
+
+  // Add workflow task
+  const expandedTask = processTemplate(
+    workflow.task,
+    { ...context, ...inputs },
+    { ...persona.env, ...workflow.env }
+  );
+  parts.push(expandedTask);
+
+  return parts.join("\n");
+}
+
+/**
+ * Run a workflow with a resolved persona
+ */
+export async function runWorkflow(
+  workflow: Workflow,
+  persona: ResolvedPersona,
+  options: RunOptions = {}
+): Promise<ExecutionResult> {
+  const startedAt = new Date();
+  const context = createExecutionContext({
+    WORKFLOW_NAME: workflow.name,
+    WORKFLOW_DIR: workflow.path,
+    PERSONA_NAME: persona.name,
+    PERSONA_DIR: persona.path,
+  });
+
+  // Merge inputs: defaults < workflow inputs < options.inputs
+  const inputs: Record<string, unknown> = {
+    ...getInputDefaults(workflow),
+    ...options.inputs,
+  };
+
+  // Merge environment
+  const env: Record<string, string> = {
+    ...process.env,
+    ...persona.env,
+    ...workflow.env,
+    ...options.env,
+  } as Record<string, string>;
+
+  // Expand environment variable values
+  for (const [key, value] of Object.entries(env)) {
+    if (value) {
+      env[key] = expandVariables(value, context as Record<string, string>, env);
+    }
+  }
+
+  // Determine working directory
+  let workingDir = options.workingDir ?? workflow.working_dir ?? process.cwd();
+  workingDir = expandVariables(
+    workingDir,
+    { ...context, ...(inputs as Record<string, string>) },
+    env
+  );
+
+  // Build the prompt
+  const prompt = buildPrompt(workflow, persona, context, inputs);
+
+  // Determine timeout
+  const timeoutMs = options.timeout
+    ? parseDuration(options.timeout)
+    : workflow.timeout
+      ? parseDuration(workflow.timeout)
+      : 10 * 60 * 1000; // Default 10 minutes
+
+  // Dry run - just return the prompt
+  if (options.dryRun) {
+    return {
+      success: true,
+      exitCode: 0,
+      stdout: prompt,
+      stderr: "",
+      duration: 0,
+      runId: context.RUN_ID,
+      startedAt,
+      endedAt: new Date(),
+    };
+  }
+
+  // Try each command in order
+  let lastError: Error | null = null;
+  let result: ExecutionResult | null = null;
+
+  for (const cmd of persona.cmd) {
+    try {
+      const expandedCmd = expandVariables(cmd, context as Record<string, string>, env);
+      const [command, ...args] = expandedCmd.split(/\s+/);
+
+      const subprocess = execa(command, args, {
+        input: prompt,
+        cwd: workingDir,
+        env,
+        timeout: timeoutMs,
+        reject: false,
+      });
+
+      const execResult = await subprocess;
+      const endedAt = new Date();
+
+      result = {
+        success: execResult.exitCode === 0,
+        exitCode: execResult.exitCode ?? 1,
+        stdout: execResult.stdout,
+        stderr: execResult.stderr,
+        duration: endedAt.getTime() - startedAt.getTime(),
+        runId: context.RUN_ID,
+        startedAt,
+        endedAt,
+      };
+
+      if (result.success) {
+        break; // Success, no need to try fallback commands
+      }
+
+      lastError = new Error(
+        `Command failed with exit code ${result.exitCode}: ${execResult.stderr}`
+      );
+    } catch (error) {
+      lastError = error as Error;
+      // Continue to next fallback command
+    }
+  }
+
+  if (!result) {
+    const endedAt = new Date();
+    return {
+      success: false,
+      exitCode: 1,
+      stdout: "",
+      stderr: lastError?.message ?? "All commands failed",
+      duration: endedAt.getTime() - startedAt.getTime(),
+      runId: context.RUN_ID,
+      startedAt,
+      endedAt,
+      error: lastError?.message,
+    };
+  }
+
+  return result;
+}
+
+/**
+ * Session log metadata
+ */
+export interface SessionMetadata {
+  workflowName: string;
+  personaName: string;
+}
+
+/**
+ * Ensure log directory exists and write execution log
+ */
+export async function writeExecutionLog(
+  sessionsDir: string,
+  metadata: SessionMetadata,
+  result: ExecutionResult
+): Promise<string> {
+  await mkdir(sessionsDir, { recursive: true });
+
+  // Format: YYYYMMDD-HHMMSS.log
+  const timestamp = result.startedAt
+    .toISOString()
+    .replace(/[-:]/g, "")
+    .replace("T", "-")
+    .split(".")[0];
+
+  const filename = `${timestamp}.log`;
+  const logPath = join(sessionsDir, filename);
+
+  const logContent = `Run ID: ${result.runId}
+Workflow: ${metadata.workflowName}
+Persona: ${metadata.personaName}
+Started: ${result.startedAt.toISOString()}
+Ended: ${result.endedAt.toISOString()}
+Duration: ${result.duration}ms
+Exit Code: ${result.exitCode}
+Success: ${result.success}
+${result.error ? `Error: ${result.error}\n` : ""}
+--- STDOUT ---
+${result.stdout}
+
+--- STDERR ---
+${result.stderr}
+`;
+
+  await writeFile(logPath, logContent, "utf-8");
+  return logPath;
+}
