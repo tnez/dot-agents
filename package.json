@@ -8,7 +8,7 @@
     "packages/*"
   ],
   "scripts": {
-    "build": "npm run build -w @dot-agents/core && npm run build -w @dot-agents/cli",
+    "build": "npm run build -w @dot-agents/core && npm run build -w @dot-agents/daemon && npm run build -w @dot-agents/cli",
     "dev": "npm run dev --workspaces --if-present",
     "typecheck": "tsc --build",
     "clean": "rm -rf packages/*/dist packages/*/*.tsbuildinfo",

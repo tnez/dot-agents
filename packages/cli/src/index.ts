@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { Command } from "commander";
-import { runCommand, listCommand, showCommand, scheduleCommand } from "./commands/index.js";
+import { runCommand, listCommand, showCommand, scheduleCommand, daemonCommand } from "./commands/index.js";
 
 const program = new Command();
 
@@ -17,6 +17,7 @@ program.addCommand(runCommand);
 program.addCommand(listCommand);
 program.addCommand(showCommand);
 program.addCommand(scheduleCommand);
+program.addCommand(daemonCommand);
 
 // Alias 'workflows' to 'list workflows'
 program

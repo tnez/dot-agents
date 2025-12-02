@@ -14,5 +14,9 @@
     "isolatedModules": true,
     "noEmit": true
   },
-  "references": [{ "path": "./packages/core" }, { "path": "./packages/cli" }]
+  "references": [
+    { "path": "./packages/core" },
+    { "path": "./packages/daemon" },
+    { "path": "./packages/cli" }
+  ]
 }
