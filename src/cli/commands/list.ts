@@ -6,7 +6,7 @@ import {
   loadWorkflow,
   listPersonas,
   loadPersona,
-} from "@dot-agents/core";
+} from "../../lib/index.js";
 import { relative } from "node:path";
 
 export const listCommand = new Command("list")

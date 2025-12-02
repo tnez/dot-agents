@@ -1,6 +1,6 @@
 import { Command } from "commander";
 import chalk from "chalk";
-import { requireConfig, getScheduledWorkflows } from "@dot-agents/core";
+import { requireConfig, getScheduledWorkflows } from "../../lib/index.js";
 import { relative } from "node:path";
 
 export const scheduleCommand = new Command("schedule")

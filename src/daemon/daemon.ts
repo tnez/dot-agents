@@ -11,7 +11,7 @@ import {
   loadWorkflow,
   listPersonas,
   loadPersona,
-} from "@dot-agents/core";
+} from "../lib/index.js";
 import { Scheduler, type ScheduledJob } from "./lib/scheduler.js";
 import { Executor } from "./lib/executor.js";
 import { Watcher } from "./lib/watcher.js";

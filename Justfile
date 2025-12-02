@@ -19,7 +19,7 @@ dev:
 
 # Run the dot-agents CLI
 cli *args:
-    node packages/cli/dist/index.js {{args}}
+    node dist/cli/index.js {{args}}
 
 # Clean build artifacts
 clean-build:

@@ -1,7 +1,7 @@
 import { Command } from "commander";
 import chalk from "chalk";
-import { Daemon } from "@dot-agents/daemon";
-import { requireConfig } from "@dot-agents/core";
+import { Daemon } from "../../daemon/index.js";
+import { requireConfig } from "../../lib/index.js";
 
 export const daemonCommand = new Command("daemon").description(
   "Manage the workflow scheduler daemon"

@@ -10,7 +10,7 @@ import {
   processTemplate,
   expandVariables,
   getInputDefaults,
-} from "@dot-agents/core";
+} from "../../lib/index.js";
 
 /**
  * Parse duration string to milliseconds

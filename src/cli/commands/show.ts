@@ -6,7 +6,7 @@ import {
   resolvePersona,
   createExecutionContext,
   getInputDefaults,
-} from "@dot-agents/core";
+} from "../../lib/index.js";
 import { buildPrompt } from "../lib/runner.js";
 
 export const showCommand = new Command("show")

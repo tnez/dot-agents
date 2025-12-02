@@ -1,7 +1,7 @@
 import { stat } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { homedir } from "node:os";
-import type { DotAgentsConfig } from "../types/index.js";
+import type { DotAgentsConfig } from "./types/index.js";
 
 /**
  * Default directory names

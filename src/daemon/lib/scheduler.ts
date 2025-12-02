@@ -1,6 +1,6 @@
 import { CronJob } from "cron";
 import { EventEmitter } from "node:events";
-import type { Workflow } from "@dot-agents/core";
+import type { Workflow } from "../../lib/index.js";
 
 /**
  * Scheduled job info

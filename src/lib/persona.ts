@@ -5,7 +5,7 @@ import type {
   Persona,
   PersonaFrontmatter,
   ResolvedPersona,
-} from "../types/persona.js";
+} from "./types/persona.js";
 
 const PERSONA_FILENAME = "PERSONA.md";
 

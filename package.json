@@ -1,26 +1,71 @@
 {
   "name": "dot-agents",
   "version": "0.1.0",
-  "private": true,
   "description": "A framework for building agentic workflows with personas and scheduled execution",
   "type": "module",
-  "workspaces": [
-    "packages/*"
-  ],
-  "scripts": {
-    "build": "npm run build -w @dot-agents/core && npm run build -w @dot-agents/daemon && npm run build -w @dot-agents/cli",
-    "dev": "npm run dev --workspaces --if-present",
-    "typecheck": "tsc --build",
-    "clean": "rm -rf packages/*/dist packages/*/*.tsbuildinfo",
-    "dot-agents": "node packages/cli/dist/index.js"
+  "main": "./dist/lib/index.js",
+  "types": "./dist/lib/index.d.ts",
+  "bin": {
+    "dot-agents": "./dist/cli/index.js"
   },
+  "exports": {
+    ".": {
+      "types": "./dist/lib/index.d.ts",
+      "import": "./dist/lib/index.js"
+    },
+    "./daemon": {
+      "types": "./dist/daemon/index.d.ts",
+      "import": "./dist/daemon/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist *.tsbuildinfo",
+    "prepublishOnly": "npm run clean && npm run build"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/tnez/dot-agents.git"
   },
+  "homepage": "https://github.com/tnez/dot-agents#readme",
+  "bugs": {
+    "url": "https://github.com/tnez/dot-agents/issues"
+  },
   "author": "tnez",
   "license": "MIT",
+  "keywords": [
+    "agents",
+    "ai",
+    "workflows",
+    "automation",
+    "claude",
+    "llm",
+    "cli"
+  ],
   "engines": {
     "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "chokidar": "^4.0.1",
+    "commander": "^12.1.0",
+    "cron": "^3.1.7",
+    "execa": "^9.5.1",
+    "express": "^4.21.1",
+    "glob": "^11.0.0",
+    "handlebars": "^4.7.8",
+    "yaml": "^2.6.1"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/node": "^22.10.1",
+    "typescript": "^5.7.2"
   }
 }

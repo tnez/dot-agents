@@ -1,4 +1,4 @@
-import type { ExecutionContext } from "../types/index.js";
+import type { ExecutionContext } from "./types/index.js";
 
 /**
  * Generate a unique run ID

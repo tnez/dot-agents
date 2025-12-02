@@ -12,11 +12,9 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "noEmit": true
+    "outDir": "./dist",
+    "rootDir": "./src"
   },
-  "references": [
-    { "path": "./packages/core" },
-    { "path": "./packages/daemon" },
-    { "path": "./packages/cli" }
-  ]
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist"]
 }

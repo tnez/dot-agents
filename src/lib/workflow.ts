@@ -1,7 +1,7 @@
 import { readdir, stat } from "node:fs/promises";
 import { join, dirname } from "node:path";
 import { loadMarkdownFile } from "./frontmatter.js";
-import type { Workflow, WorkflowFrontmatter } from "../types/workflow.js";
+import type { Workflow, WorkflowFrontmatter } from "./types/workflow.js";
 
 const WORKFLOW_FILENAME = "WORKFLOW.md";
 

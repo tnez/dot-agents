@@ -5,7 +5,7 @@ import {
   findWorkflow,
   resolvePersona,
   validateInputs,
-} from "@dot-agents/core";
+} from "../../lib/index.js";
 import { runWorkflow, writeExecutionLog } from "../lib/runner.js";
 
 export const runCommand = new Command("run")
