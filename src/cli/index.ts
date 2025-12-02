@@ -8,7 +8,7 @@ const program = new Command();
 program
   .name("dot-agents")
   .description("Run and manage agentic workflows")
-  .version("0.2.0")
+  .version("0.3.0")
   .action(() => {
     program.help();
   });
