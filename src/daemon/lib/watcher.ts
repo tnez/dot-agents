@@ -77,18 +77,36 @@ export class Watcher extends EventEmitter {
 
     // Watch DM channels (@* channels) for new messages
     if (this.channelsDir) {
-      this.dmWatcher = watch(`${this.channelsDir}/@*/*/message.md`, {
+      // Watch the channels directory for new message.md files
+      // Using directory watch instead of glob because @* patterns are unreliable
+      this.dmWatcher = watch(this.channelsDir, {
         ignoreInitial: true,
         persistent: true,
+        depth: 3, // channels/@name/message-id/message.md
       });
 
       this.dmWatcher.on("add", (path) => {
+        // Only process message.md files
+        if (!path.endsWith("/message.md")) {
+          return;
+        }
+
         // Path: {channelsDir}/@persona-name/{message-id}/message.md
         const messageDir = dirname(path);
         const messageId = basename(messageDir);
         const channelDir = dirname(messageDir);
-        const channel = basename(channelDir); // e.g., "@channel-manager"
+        const channel = basename(channelDir);
+
+        // Only process DM channels (starting with @)
+        if (!channel.startsWith("@")) {
+          return;
+        }
+
         this.emit("dm:received", { channel, messageId, messagePath: path });
+      });
+
+      this.dmWatcher.on("error", (error: unknown) => {
+        console.error(`[watcher] DM watcher error: ${(error as Error).message}`);
       });
     }
   }
