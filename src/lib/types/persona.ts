@@ -31,6 +31,12 @@ export interface PersonaFrontmatter {
   env?: Record<string, string>;
   /** Enabled skills - glob patterns, use ! for negation */
   skills?: string[];
+  /**
+   * Control inheritance from internal _base persona
+   * - undefined: implicit inheritance from _base (default)
+   * - "none": opt out of _base inheritance
+   */
+  extends?: "none";
 }
 
 /**
@@ -43,6 +49,8 @@ export interface Persona extends PersonaFrontmatter {
   prompt?: string;
   /** Parent persona path if this is a child (for tracking) */
   parent?: string;
+  /** Whether this is an internal (bundled) persona */
+  internal?: boolean;
 }
 
 /**

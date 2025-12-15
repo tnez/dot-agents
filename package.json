@@ -28,6 +28,7 @@
   },
   "files": [
     "dist",
+    "internal",
     "README.md",
     "LICENSE"
   ],

@@ -1,5 +1,6 @@
 import { readdir, stat } from "node:fs/promises";
-import { join, dirname, basename, relative } from "node:path";
+import { join, dirname, relative } from "node:path";
+import { fileURLToPath } from "node:url";
 import { loadMarkdownFile } from "./frontmatter.js";
 import type {
   Persona,
@@ -11,6 +12,25 @@ import type {
 } from "./types/persona.js";
 
 const PERSONA_FILENAME = "PERSONA.md";
+
+/**
+ * Get the path to internal personas bundled with the package.
+ * Resolves relative to this module's location.
+ */
+export function getInternalPersonasPath(): string {
+  const currentFile = fileURLToPath(import.meta.url);
+  const libDir = dirname(currentFile);
+  // From dist/lib or src/lib -> root -> internal/personas
+  const packageRoot = dirname(dirname(libDir));
+  return join(packageRoot, "internal", "personas");
+}
+
+/**
+ * Get the path to the internal _base persona
+ */
+export function getInternalBasePath(): string {
+  return join(getInternalPersonasPath(), "_base");
+}
 
 /**
  * Normalize a CommandSpec to string array
@@ -64,6 +84,19 @@ export function resolveCommands(cmd: CommandSpec | CommandModes | undefined): Re
 }
 
 /**
+ * Check if a directory contains a PERSONA.md file
+ */
+async function hasPersonaFile(dirPath: string): Promise<boolean> {
+  try {
+    const filePath = join(dirPath, PERSONA_FILENAME);
+    const stats = await stat(filePath);
+    return stats.isFile();
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Load a single persona file
  */
 export async function loadPersona(personaPath: string): Promise<Persona> {
@@ -89,6 +122,19 @@ export async function loadPersona(personaPath: string): Promise<Persona> {
 }
 
 /**
+ * Load the internal _base persona if it exists
+ * Returns null if not found (graceful degradation)
+ */
+export async function loadInternalBase(): Promise<Persona | null> {
+  const basePath = getInternalBasePath();
+  if (await hasPersonaFile(basePath)) {
+    const persona = await loadPersona(basePath);
+    return { ...persona, internal: true };
+  }
+  return null;
+}
+
+/**
  * Build the inheritance chain for a persona path
  * Returns paths from root to leaf (e.g., ["claude", "claude/autonomous"])
  */
@@ -108,19 +154,6 @@ export function buildInheritanceChain(
   }
 
   return chain;
-}
-
-/**
- * Check if a directory contains a PERSONA.md file
- */
-async function hasPersonaFile(dirPath: string): Promise<boolean> {
-  try {
-    const filePath = join(dirPath, PERSONA_FILENAME);
-    const stats = await stat(filePath);
-    return stats.isFile();
-  } catch {
-    return false;
-  }
 }
 
 /**
@@ -211,6 +244,7 @@ export function mergePersonas(parent: Persona, child: Persona): Persona {
 
 /**
  * Resolve a persona with full inheritance chain
+ * Includes implicit inheritance from internal _base persona unless extends: "none"
  */
 export async function resolvePersona(
   personaPath: string,
@@ -238,6 +272,23 @@ export async function resolvePersona(
     throw new Error(`No persona found at path: ${personaPath}`);
   }
 
+  // Check if persona opts out of internal base inheritance
+  // The root persona in the chain determines inheritance behavior
+  const rootPersona = await loadPersona(inheritanceChain[0]);
+  const shouldInheritBase = rootPersona.extends !== "none";
+
+  // Load and merge internal _base persona (prepend its prompt)
+  let finalPrompt = resolved.prompt;
+  if (shouldInheritBase) {
+    const base = await loadInternalBase();
+    if (base?.prompt) {
+      // Prepend base prompt with separator
+      finalPrompt = base.prompt + (finalPrompt ? "\n\n---\n\n" + finalPrompt : "");
+      // Add base to the start of inheritance chain
+      inheritanceChain.unshift(base.path);
+    }
+  }
+
   // Resolve commands to normalized structure
   const commands = resolveCommands(resolved.cmd);
 
@@ -247,7 +298,7 @@ export async function resolvePersona(
     commands,
     env: resolved.env ?? {},
     skills: resolved.skills ?? [],
-    prompt: resolved.prompt,
+    prompt: finalPrompt,
     path: resolved.path,
     inheritanceChain,
   };
