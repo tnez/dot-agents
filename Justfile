@@ -97,6 +97,14 @@ check: lint
 test-channels:
     ./scripts/test-channels.sh
 
+# Run persona inheritance tests
+test-personas:
+    ./scripts/test-persona-inheritance.sh
+
+# Run all integration tests
+test: test-channels test-personas
+    @echo "All integration tests passed!"
+
 # Clean up generated files
 clean:
     find . -type f -name '*.pyc' -delete
