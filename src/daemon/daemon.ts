@@ -1,4 +1,4 @@
-import { readdir, stat } from "node:fs/promises";
+import { readdir, stat, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { Server } from "node:http";
 import type { Express } from "express";
@@ -109,11 +109,13 @@ export class Daemon {
     if (this.watchEnabled) {
       this.watcher = new Watcher(
         this.config.workflowsDir,
-        this.config.personasDir
+        this.config.personasDir,
+        this.config.channelsDir
       );
       this.setupWatcherEvents();
       this.watcher.start();
       console.log("[watcher] Watching for file changes");
+      console.log("[watcher] Watching DM channels for messages");
     }
 
     // Start API server
@@ -224,6 +226,40 @@ export class Daemon {
       const parts = path.split("/");
       const name = parts[parts.length - 1];
       this.scheduler.removeWorkflow(name);
+    });
+
+    // Handle DM messages to personas
+    this.watcher.on("dm:received", async ({ channel, messageId, messagePath }) => {
+      // Extract persona name from channel (e.g., "@channel-manager" -> "channel-manager")
+      const personaName = channel.slice(1);
+      console.log(`[dm] Received message for ${personaName}: ${messageId}`);
+
+      try {
+        // Read the message content
+        const messageContent = await readFile(messagePath, "utf-8");
+
+        // Strip frontmatter if present
+        let content = messageContent;
+        if (content.startsWith("---\n")) {
+          const endIndex = content.indexOf("\n---\n", 4);
+          if (endIndex !== -1) {
+            content = content.slice(endIndex + 5).trim();
+          }
+        }
+
+        // Invoke the persona with the message
+        console.log(`[dm] Invoking persona ${personaName}...`);
+        const result = await this.executor!.invokePersona(personaName, content, {
+          source: channel,
+          context: { DM_MESSAGE_ID: messageId },
+        });
+
+        console.log(
+          `[dm] ${personaName}: ${result.success ? "success" : "failure"} (${result.duration}ms)`
+        );
+      } catch (error) {
+        console.error(`[dm] Failed to invoke ${personaName}: ${(error as Error).message}`);
+      }
     });
   }
 

@@ -12,19 +12,22 @@ export interface WatcherEvents {
   "persona:added": { path: string };
   "persona:changed": { path: string };
   "persona:removed": { path: string };
+  "dm:received": { channel: string; messageId: string; messagePath: string };
 }
 
 /**
- * File watcher for workflows and personas
+ * File watcher for workflows, personas, and DM channels
  */
 export class Watcher extends EventEmitter {
   private workflowWatcher: FSWatcher | null = null;
   private personaWatcher: FSWatcher | null = null;
+  private dmWatcher: FSWatcher | null = null;
   private running = false;
 
   constructor(
     private workflowsDir: string,
-    private personasDir: string
+    private personasDir: string,
+    private channelsDir?: string
   ) {
     super();
   }
@@ -71,6 +74,23 @@ export class Watcher extends EventEmitter {
     this.personaWatcher.on("unlink", (path) => {
       this.emit("persona:removed", { path: dirname(path) });
     });
+
+    // Watch DM channels (@* channels) for new messages
+    if (this.channelsDir) {
+      this.dmWatcher = watch(`${this.channelsDir}/@*/*/message.md`, {
+        ignoreInitial: true,
+        persistent: true,
+      });
+
+      this.dmWatcher.on("add", (path) => {
+        // Path: {channelsDir}/@persona-name/{message-id}/message.md
+        const messageDir = dirname(path);
+        const messageId = basename(messageDir);
+        const channelDir = dirname(messageDir);
+        const channel = basename(channelDir); // e.g., "@channel-manager"
+        this.emit("dm:received", { channel, messageId, messagePath: path });
+      });
+    }
   }
 
   /**
@@ -88,6 +108,11 @@ export class Watcher extends EventEmitter {
     if (this.personaWatcher) {
       await this.personaWatcher.close();
       this.personaWatcher = null;
+    }
+
+    if (this.dmWatcher) {
+      await this.dmWatcher.close();
+      this.dmWatcher = null;
     }
   }
 
