@@ -137,11 +137,16 @@ export async function runWorkflow(
   const prompt = buildPrompt(workflow, persona, context, inputs);
 
   // Determine timeout
-  const timeoutMs = options.timeout
-    ? parseDuration(options.timeout)
-    : workflow.timeout
-      ? parseDuration(workflow.timeout)
-      : 10 * 60 * 1000; // Default 10 minutes
+  // Interactive mode: no timeout (user controls session)
+  // Headless mode: use explicit timeout or default to 10 minutes
+  const interactive = options.interactive ?? false;
+  const timeoutMs = interactive
+    ? undefined // No timeout for interactive sessions
+    : options.timeout
+      ? parseDuration(options.timeout)
+      : workflow.timeout
+        ? parseDuration(workflow.timeout)
+        : 10 * 60 * 1000; // Default 10 minutes for headless
 
   // Dry run - just return the prompt
   if (options.dryRun) {
@@ -157,8 +162,7 @@ export async function runWorkflow(
     };
   }
 
-  // Select commands based on execution mode
-  const interactive = options.interactive ?? false;
+  // Select commands based on execution mode (interactive already defined above for timeout)
   const cmds = interactive
     ? persona.commands.interactive
     : persona.commands.headless;
@@ -187,22 +191,35 @@ export async function runWorkflow(
       const expandedCmd = expandVariables(cmd, context as Record<string, string>, env);
       const [command, ...args] = expandedCmd.split(/\s+/);
 
-      const subprocess = execa(command, args, {
-        input: prompt,
-        cwd: workingDir,
-        env,
-        timeout: timeoutMs,
-        reject: false,
-      });
+      let execResult;
+      if (interactive) {
+        // Interactive mode: pass prompt as CLI argument, inherit stdio for terminal interaction
+        execResult = await execa(command, [...args, prompt], {
+          cwd: workingDir,
+          env,
+          timeout: timeoutMs,
+          stdio: "inherit",
+          reject: false,
+        });
+      } else {
+        // Headless mode: pipe prompt via stdin, capture output
+        execResult = await execa(command, args, {
+          input: prompt,
+          cwd: workingDir,
+          env,
+          timeout: timeoutMs,
+          reject: false,
+        });
+      }
 
-      const execResult = await subprocess;
       const endedAt = new Date();
 
       result = {
         success: execResult.exitCode === 0,
         exitCode: execResult.exitCode ?? 1,
-        stdout: execResult.stdout,
-        stderr: execResult.stderr,
+        // Interactive mode doesn't capture stdout/stderr (inherited to terminal)
+        stdout: execResult.stdout ?? "",
+        stderr: execResult.stderr ?? "",
         duration: endedAt.getTime() - startedAt.getTime(),
         runId: context.RUN_ID,
         startedAt,
@@ -214,7 +231,7 @@ export async function runWorkflow(
       }
 
       lastError = new Error(
-        `Command failed with exit code ${result.exitCode}: ${execResult.stderr}`
+        `Command failed with exit code ${result.exitCode}: ${execResult.stderr ?? "unknown error"}`
       );
     } catch (error) {
       lastError = error as Error;
