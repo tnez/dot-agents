@@ -86,6 +86,16 @@ export interface GitHubTrigger {
 }
 
 /**
+ * Channel message trigger - run workflow when message posted to a channel
+ */
+export interface ChannelTrigger {
+  /** Channel name to watch (e.g., "#issues", "#requests") */
+  channel: string;
+  /** Optional input overrides for channel-triggered runs */
+  inputs?: TriggerInputOverride;
+}
+
+/**
  * All workflow triggers
  */
 export interface WorkflowTriggers {
@@ -103,4 +113,6 @@ export interface WorkflowTriggers {
   git?: GitTrigger;
   /** GitHub event trigger */
   github?: GitHubTrigger;
+  /** Channel message trigger */
+  channel?: ChannelTrigger;
 }
