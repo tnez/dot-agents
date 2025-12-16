@@ -13,15 +13,16 @@ export interface WatcherEvents {
   "persona:changed": { path: string };
   "persona:removed": { path: string };
   "dm:received": { channel: string; messageId: string; messagePath: string };
+  "channel:message": { channel: string; messageId: string; messagePath: string };
 }
 
 /**
- * File watcher for workflows, personas, and DM channels
+ * File watcher for workflows, personas, and channels
  */
 export class Watcher extends EventEmitter {
   private workflowWatcher: FSWatcher | null = null;
   private personaWatcher: FSWatcher | null = null;
-  private dmWatcher: FSWatcher | null = null;
+  private channelWatcher: FSWatcher | null = null;
   private running = false;
 
   constructor(
@@ -75,38 +76,40 @@ export class Watcher extends EventEmitter {
       this.emit("persona:removed", { path: dirname(path) });
     });
 
-    // Watch DM channels (@* channels) for new messages
+    // Watch channels for new messages (both DM @* and public #*)
     if (this.channelsDir) {
       // Watch the channels directory for new message.md files
       // Using directory watch instead of glob because @* patterns are unreliable
-      this.dmWatcher = watch(this.channelsDir, {
+      this.channelWatcher = watch(this.channelsDir, {
         ignoreInitial: true,
         persistent: true,
-        depth: 3, // channels/@name/message-id/message.md
+        depth: 3, // channels/{@name|#name}/message-id/message.md
       });
 
-      this.dmWatcher.on("add", (path) => {
+      this.channelWatcher.on("add", (path) => {
         // Only process message.md files
         if (!path.endsWith("/message.md")) {
           return;
         }
 
-        // Path: {channelsDir}/@persona-name/{message-id}/message.md
+        // Path: {channelsDir}/{@persona|#channel}/{message-id}/message.md
         const messageDir = dirname(path);
         const messageId = basename(messageDir);
         const channelDir = dirname(messageDir);
         const channel = basename(channelDir);
 
-        // Only process DM channels (starting with @)
-        if (!channel.startsWith("@")) {
-          return;
+        // Emit appropriate event based on channel type
+        if (channel.startsWith("@")) {
+          // DM channel -> invoke persona
+          this.emit("dm:received", { channel, messageId, messagePath: path });
+        } else if (channel.startsWith("#")) {
+          // Public channel -> trigger workflow
+          this.emit("channel:message", { channel, messageId, messagePath: path });
         }
-
-        this.emit("dm:received", { channel, messageId, messagePath: path });
       });
 
-      this.dmWatcher.on("error", (error: unknown) => {
-        console.error(`[watcher] DM watcher error: ${(error as Error).message}`);
+      this.channelWatcher.on("error", (error: unknown) => {
+        console.error(`[watcher] Channel watcher error: ${(error as Error).message}`);
       });
     }
   }
@@ -128,9 +131,9 @@ export class Watcher extends EventEmitter {
       this.personaWatcher = null;
     }
 
-    if (this.dmWatcher) {
-      await this.dmWatcher.close();
-      this.dmWatcher = null;
+    if (this.channelWatcher) {
+      await this.channelWatcher.close();
+      this.channelWatcher = null;
     }
   }
 
