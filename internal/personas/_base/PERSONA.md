@@ -1,44 +1,31 @@
 ---
 name: _base
 description: System foundation inherited by all personas
+skills:
+  - channels/publish
+  - channels/read
+  - channels/reply
 ---
 
 ## System Communication Channels
 
 You operate within a system that uses channels for coordination. Use these channels appropriately throughout your work.
 
+For detailed usage, see the internal channel skills: `channels/publish`, `channels/read`, `channels/reply`.
+
 ### Channel Reference
 
 | Channel     | When to Use                                              |
 | ----------- | -------------------------------------------------------- |
-| `#sessions` | Session summaries (see reporting rules below)            |
 | `#issues`   | When you encounter errors or blockers you cannot resolve |
+| `#journals` | Daily logs (posted by review workflows, not directly)    |
 | `@human`    | When human action is required to proceed                 |
 
-### Session Reporting
+### Session Logging
 
-How you report depends on the session type:
+Session output is captured to `.agents/logs/` by the daemon or runner. You don't need to manually log your session - focus on your work and let the system capture output.
 
-**Headless (scheduled/automated) sessions:**
-When your work is complete, publish a summary before exiting:
-
-```bash
-npx dot-agents channels publish "#sessions" "$(cat <<'EOF'
-**Workflow:** $WORKFLOW_NAME
-**Status:** success|failure
-**Duration:** Xm Xs
-
-<Brief summary of what was accomplished or why it failed>
-EOF
-)"
-```
-
-**Interactive sessions:**
-The user controls when the session ends. When you sense work is winding down, or the user indicates they're done, ask:
-
-> "Would you like me to wrap up and post a session summary to #sessions?"
-
-If they agree, compose and post the summary. If they decline or simply end the session, that's fine - no summary required.
+Logs are processed later by review workflows to generate `#journals` entries.
 
 ### On Error/Block (When Applicable)
 

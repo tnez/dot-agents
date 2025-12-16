@@ -2,13 +2,14 @@
 
 import { Command } from "commander";
 import { initCommand, checkCommand, runCommand, listCommand, showCommand, scheduleCommand, daemonCommand, channelsCommand } from "./commands/index.js";
+import { getVersionSync } from "../lib/index.js";
 
 const program = new Command();
 
 program
   .name("dot-agents")
   .description("Run and manage agentic workflows")
-  .version("0.4.1")
+  .version(getVersionSync())
   .action(() => {
     program.help();
   });

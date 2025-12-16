@@ -33,6 +33,18 @@ export function getInternalBasePath(): string {
 }
 
 /**
+ * Get the path to internal skills bundled with the package.
+ * Resolves relative to this module's location.
+ */
+export function getInternalSkillsPath(): string {
+  const currentFile = fileURLToPath(import.meta.url);
+  const libDir = dirname(currentFile);
+  // From dist/lib or src/lib -> root -> internal/skills
+  const packageRoot = dirname(dirname(libDir));
+  return join(packageRoot, "internal", "skills");
+}
+
+/**
  * Normalize a CommandSpec to string array
  */
 function normalizeCommandSpec(cmd: CommandSpec | undefined): string[] | undefined {
