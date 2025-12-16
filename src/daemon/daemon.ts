@@ -11,6 +11,7 @@ import {
   loadWorkflow,
   listPersonas,
   loadPersona,
+  getPackageInfo,
 } from "../lib/index.js";
 import { Scheduler, type ScheduledJob } from "./lib/scheduler.js";
 import { Executor } from "./lib/executor.js";
@@ -55,6 +56,9 @@ export class Daemon {
   private port: number;
   private watchEnabled: boolean;
 
+  /** Map of channel names to workflows that trigger on them */
+  private channelTriggers: Map<string, Workflow> = new Map();
+
   constructor(options: DaemonOptions = {}) {
     this.port = options.port ?? 3141;
     this.watchEnabled = options.watch ?? true;
@@ -86,7 +90,11 @@ export class Daemon {
   async start(): Promise<void> {
     if (this.running) return;
 
-    console.log("[daemon] Starting...");
+    // Get package info and format startup timestamp
+    const pkgInfo = await getPackageInfo();
+    const timestamp = new Date().toISOString();
+
+    console.log(`[${timestamp}] dot-agents v${pkgInfo.version} starting...`);
 
     // Load config if not provided
     if (!this.config) {
@@ -97,12 +105,16 @@ export class Daemon {
     this.startTime = new Date();
 
     // Load and schedule workflows
+    console.log(`[${new Date().toISOString()}] Loading workflows from ${this.config.agentsDir}`);
     await this.loadWorkflows();
 
     // Start scheduler
     this.scheduler.start();
+    const jobCount = this.scheduler.getJobCount();
+    const channelCount = this.channelTriggers.size;
     console.log(
-      `[scheduler] Started with ${this.scheduler.getJobCount()} jobs`
+      `[${new Date().toISOString()}] Scheduler started with ${jobCount} scheduled job${jobCount !== 1 ? "s" : ""}` +
+      (channelCount > 0 ? `, ${channelCount} channel trigger${channelCount !== 1 ? "s" : ""}` : "")
     );
 
     // Start file watcher
@@ -114,17 +126,16 @@ export class Daemon {
       );
       this.setupWatcherEvents();
       this.watcher.start();
-      console.log("[watcher] Watching for file changes");
-      console.log("[watcher] Watching DM channels for messages");
+      console.log(`[${new Date().toISOString()}] File watcher started`);
     }
 
     // Start API server
     this.app = createApiServer(this);
     this.apiServer = await startApiServer(this.app, this.port);
-    console.log(`[api] Listening on http://localhost:${this.port}`);
+    console.log(`[${new Date().toISOString()}] API listening on http://localhost:${this.port}`);
 
     this.running = true;
-    console.log("[daemon] Ready");
+    console.log(`[${new Date().toISOString()}] Daemon ready`);
   }
 
   /**
@@ -160,11 +171,22 @@ export class Daemon {
   private async loadWorkflows(): Promise<void> {
     const workflowPaths = await listWorkflows(this.config!.workflowsDir);
 
+    // Clear existing channel triggers
+    this.channelTriggers.clear();
+
     for (const path of workflowPaths) {
       try {
         const workflow = await loadWorkflow(path);
         this.scheduler.addWorkflow(workflow);
-        console.log(`[loaded] ${workflow.name}`);
+
+        // Register channel triggers
+        if (workflow.on?.channel) {
+          const channel = workflow.on.channel.channel;
+          this.channelTriggers.set(channel, workflow);
+          console.log(`[loaded] ${workflow.name} (triggers on ${channel})`);
+        } else {
+          console.log(`[loaded] ${workflow.name}`);
+        }
       } catch (error) {
         console.error(`[error] Failed to load workflow at ${path}: ${(error as Error).message}`);
       }
@@ -205,6 +227,13 @@ export class Daemon {
       try {
         const workflow = await loadWorkflow(path);
         this.scheduler.addWorkflow(workflow);
+
+        // Register channel trigger if present
+        if (workflow.on?.channel) {
+          const channel = workflow.on.channel.channel;
+          this.channelTriggers.set(channel, workflow);
+          console.log(`[watcher] Registered ${workflow.name} for channel ${channel}`);
+        }
       } catch (error) {
         console.error(`[error] Failed to load new workflow: ${(error as Error).message}`);
       }
@@ -215,6 +244,20 @@ export class Daemon {
       try {
         const workflow = await loadWorkflow(path);
         this.scheduler.reloadWorkflow(workflow);
+
+        // Update channel trigger registration
+        // First, remove old registration for this workflow
+        for (const [channel, w] of this.channelTriggers.entries()) {
+          if (w.name === workflow.name) {
+            this.channelTriggers.delete(channel);
+          }
+        }
+        // Re-register if workflow has channel trigger
+        if (workflow.on?.channel) {
+          const channel = workflow.on.channel.channel;
+          this.channelTriggers.set(channel, workflow);
+          console.log(`[watcher] Updated ${workflow.name} for channel ${channel}`);
+        }
       } catch (error) {
         console.error(`[error] Failed to reload workflow: ${(error as Error).message}`);
       }
@@ -226,6 +269,14 @@ export class Daemon {
       const parts = path.split("/");
       const name = parts[parts.length - 1];
       this.scheduler.removeWorkflow(name);
+
+      // Remove any channel trigger registration for this workflow
+      for (const [channel, w] of this.channelTriggers.entries()) {
+        if (w.name === name) {
+          this.channelTriggers.delete(channel);
+          console.log(`[watcher] Unregistered ${name} from channel ${channel}`);
+        }
+      }
     });
 
     // Handle DM messages to personas
@@ -261,6 +312,48 @@ export class Daemon {
         console.error(`[dm] Failed to invoke ${personaName}: ${(error as Error).message}`);
       }
     });
+
+    // Handle public channel messages -> trigger workflows
+    this.watcher.on("channel:message", async ({ channel, messageId, messagePath }) => {
+      // Check if any workflow is registered to trigger on this channel
+      const workflow = this.channelTriggers.get(channel);
+      if (!workflow) {
+        // No workflow registered for this channel - that's fine, not all channels trigger workflows
+        return;
+      }
+
+      console.log(`[channel] ${channel} message ${messageId} -> triggering ${workflow.name}`);
+
+      try {
+        // Read the message content
+        const messageContent = await readFile(messagePath, "utf-8");
+
+        // Strip frontmatter if present
+        let content = messageContent;
+        if (content.startsWith("---\n")) {
+          const endIndex = content.indexOf("\n---\n", 4);
+          if (endIndex !== -1) {
+            content = content.slice(endIndex + 5).trim();
+          }
+        }
+
+        // Merge trigger-specific inputs with the message content
+        const inputs: Record<string, unknown> = {
+          ...workflow.on?.channel?.inputs,
+          CHANNEL_MESSAGE: content,
+          CHANNEL_MESSAGE_ID: messageId,
+          CHANNEL_NAME: channel,
+        };
+
+        const result = await this.executor!.run(workflow, { inputs });
+
+        console.log(
+          `[channel] ${workflow.name}: ${result.success ? "success" : "failure"} (${result.duration}ms)`
+        );
+      } catch (error) {
+        console.error(`[channel] Failed to trigger ${workflow.name}: ${(error as Error).message}`);
+      }
+    });
   }
 
   /**
@@ -270,16 +363,14 @@ export class Daemon {
     name: string,
     inputs?: Record<string, unknown>
   ): Promise<ExecutionResult> {
-    const workflowPaths = await listWorkflows(this.config!.workflowsDir);
+    const workflows = await this.getWorkflows();
+    const workflow = workflows.find((w) => w.name === name);
 
-    for (const path of workflowPaths) {
-      const workflow = await loadWorkflow(path);
-      if (workflow.name === name) {
-        return this.executor!.run(workflow, inputs);
-      }
+    if (!workflow) {
+      throw new Error(`Workflow not found: ${name}`);
     }
 
-    throw new Error(`Workflow not found: ${name}`);
+    return this.executor!.run(workflow, inputs);
   }
 
   /**

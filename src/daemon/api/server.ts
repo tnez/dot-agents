@@ -2,6 +2,7 @@ import express, { type Express, type Request, type Response } from "express";
 import type { Server } from "node:http";
 import type { Scheduler, ScheduledJob } from "../lib/scheduler.js";
 import type { Daemon } from "../daemon.js";
+import { getVersion } from "../../lib/index.js";
 
 /**
  * API response types
@@ -37,12 +38,13 @@ export function createApiServer(daemon: Daemon): Express {
   });
 
   // Status
-  app.get("/status", (_req: Request, res: Response) => {
+  app.get("/status", async (_req: Request, res: Response) => {
+    const version = await getVersion();
     const status: StatusResponse = {
       status: daemon.isRunning() ? "running" : "stopped",
       uptime: daemon.getUptime(),
       jobs: daemon.getScheduler().getJobCount(),
-      version: "0.1.0",
+      version,
     };
     res.json(status);
   });
