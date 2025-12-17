@@ -145,9 +145,10 @@ channelsCommand
 
       for (const msg of messages) {
         const from = msg.meta.from || "unknown";
+        const host = msg.meta.host || "unknown";
         const timestamp = formatTimestamp(msg.id);
 
-        console.log(chalk.white(`  [${timestamp}] ${chalk.cyan(from)}`));
+        console.log(chalk.white(`  [${timestamp}] ${chalk.cyan(from)} ${chalk.dim(`(${host})`)}`));
         console.log(chalk.dim(`    ID: ${msg.id}`));
 
         const lines = msg.content.split("\n");

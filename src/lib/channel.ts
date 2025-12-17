@@ -1,4 +1,5 @@
 import { readdir, mkdir, readFile, writeFile, stat } from "node:fs/promises";
+import { hostname } from "node:os";
 import { join } from "node:path";
 import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 import { parseFrontmatter } from "./frontmatter.js";
@@ -135,14 +136,13 @@ export async function publishMessage(
 
   await mkdir(messagePath, { recursive: true });
 
+  const host = hostname();
   let messageContent = "";
-  if (meta && (meta.from || meta.run_id || meta.tags?.length)) {
-    const frontmatter: Record<string, unknown> = {};
-    if (meta.from) frontmatter.from = meta.from;
-    if (meta.run_id) frontmatter.run_id = meta.run_id;
-    if (meta.tags?.length) frontmatter.tags = meta.tags;
-    messageContent = `---\n${stringifyYaml(frontmatter)}---\n\n`;
-  }
+  const frontmatter: Record<string, unknown> = { host };
+  if (meta?.from) frontmatter.from = meta.from;
+  if (meta?.run_id) frontmatter.run_id = meta.run_id;
+  if (meta?.tags?.length) frontmatter.tags = meta.tags;
+  messageContent = `---\n${stringifyYaml(frontmatter)}---\n\n`;
   messageContent += content + "\n";
 
   await writeFile(join(messagePath, MESSAGE_FILE), messageContent, "utf-8");
@@ -282,14 +282,13 @@ export async function replyToMessage(
 
   const replyId = generateMessageId();
 
+  const host = hostname();
   let replyContent = "";
-  if (meta && (meta.from || meta.run_id || meta.tags?.length)) {
-    const frontmatter: Record<string, unknown> = {};
-    if (meta.from) frontmatter.from = meta.from;
-    if (meta.run_id) frontmatter.run_id = meta.run_id;
-    if (meta.tags?.length) frontmatter.tags = meta.tags;
-    replyContent = `---\n${stringifyYaml(frontmatter)}---\n\n`;
-  }
+  const frontmatter: Record<string, unknown> = { host };
+  if (meta?.from) frontmatter.from = meta.from;
+  if (meta?.run_id) frontmatter.run_id = meta.run_id;
+  if (meta?.tags?.length) frontmatter.tags = meta.tags;
+  replyContent = `---\n${stringifyYaml(frontmatter)}---\n\n`;
   replyContent += content + "\n";
 
   await writeFile(join(messagePath, `${replyId}.md`), replyContent, "utf-8");

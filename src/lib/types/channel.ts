@@ -18,6 +18,8 @@ export interface ChannelMetadata {
 export interface ChannelMessageMeta {
   /** Who sent the message (e.g., workflow/process-inbox, @tnez) */
   from?: string;
+  /** Hostname where the message originated */
+  host?: string;
   /** Unique run identifier if from a workflow */
   run_id?: string;
   /** Tags for categorization */
