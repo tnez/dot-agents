@@ -54,3 +54,6 @@ htmlcov/
 sessions/**/*.log
 sessions/**/*.json
 !sessions/README.md
+
+# Local agent sessions
+.agents/sessions/

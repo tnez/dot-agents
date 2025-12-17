@@ -101,8 +101,12 @@ test-channels:
 test-personas:
     ./scripts/test-persona-inheritance.sh
 
+# Run MCP inheritance tests
+test-mcp:
+    ./scripts/test-mcp-inheritance.sh
+
 # Run all integration tests
-test: test-channels test-personas
+test: test-channels test-personas test-mcp
     @echo "All integration tests passed!"
 
 # Clean up generated files

@@ -85,7 +85,7 @@ assert_contains "$output" "_base" || fail "Should show _base in inheritance"
 assert_contains "$output" "Inheritance:" || fail "Should show inheritance line"
 
 # Should include channel conventions from _base
-assert_contains "$output" "#sessions" || fail "Should include #sessions channel guidance"
+assert_contains "$output" "#journals" || fail "Should include #journals channel guidance"
 assert_contains "$output" "#issues" || fail "Should include #issues channel guidance"
 assert_contains "$output" "@human" || fail "Should include @human channel guidance"
 
@@ -110,18 +110,18 @@ assert_contains "$inheritance_line" "test-persona" || fail "Inheritance should i
 pass "Inheritance chain order correct"
 
 # -----------------------------------------------------------------------------
-# Test 3: Session reporting guidance present
+# Test 3: Session logging guidance present
 # -----------------------------------------------------------------------------
 
-echo "Test 3: Session reporting guidance included"
+echo "Test 3: Session logging guidance included"
 
 output=$($CLI show persona test-persona 2>&1)
 
-# Should include headless vs interactive differentiation
-assert_contains "$output" "Headless" || fail "Should mention headless sessions"
-assert_contains "$output" "Interactive" || fail "Should mention interactive sessions"
+# Should include session logging guidance from _base
+assert_contains "$output" "Session Logging" || fail "Should mention session logging"
+assert_contains "$output" "daemon or runner" || fail "Should mention daemon/runner capture"
 
-pass "Session reporting guidance present"
+pass "Session logging guidance present"
 
 # -----------------------------------------------------------------------------
 # Test 4: extends: none opts out of base
@@ -148,7 +148,7 @@ output=$($CLI show persona test-persona 2>&1)
 assert_not_contains "$output" "_base" || fail "Should NOT include _base when extends: none"
 
 # Should NOT include channel conventions
-assert_not_contains "$output" "#sessions" || fail "Should NOT include #sessions when opted out"
+assert_not_contains "$output" "#journals" || fail "Should NOT include #journals when opted out"
 
 # Should still include user prompt
 assert_contains "$output" "Standalone persona without base" || fail "Should include user prompt"
@@ -156,10 +156,10 @@ assert_contains "$output" "Standalone persona without base" || fail "Should incl
 pass "extends: none correctly opts out"
 
 # -----------------------------------------------------------------------------
-# Test 5: Nested persona inherits base through parent
+# Test 5: Child persona with explicit extends inherits base through parent
 # -----------------------------------------------------------------------------
 
-echo "Test 5: Nested persona inherits base"
+echo "Test 5: Child persona inherits base via extends"
 
 # Reset to default persona (no extends: none)
 cat > "$TEST_DIR/.agents/personas/test-persona/PERSONA.md" << 'EOF'
@@ -173,25 +173,28 @@ cmd:
 Parent prompt.
 EOF
 
-# Create child persona
-mkdir -p "$TEST_DIR/.agents/personas/test-persona/child"
-cat > "$TEST_DIR/.agents/personas/test-persona/child/PERSONA.md" << 'EOF'
+# Create child persona with explicit extends
+mkdir -p "$TEST_DIR/.agents/personas/child-persona"
+cat > "$TEST_DIR/.agents/personas/child-persona/PERSONA.md" << 'EOF'
 ---
-name: test-child
+name: child-persona
 description: Child persona
+extends: test-persona
 ---
 
 Child prompt.
 EOF
 
-output=$($CLI show persona test-persona/child 2>&1)
+output=$($CLI show persona child-persona 2>&1)
 
 # Should include _base in inheritance
 assert_contains "$output" "_base" || fail "Child should inherit _base"
 assert_contains "$output" "test-persona" || fail "Child should show parent in chain"
-assert_contains "$output" "#sessions" || fail "Child should have channel guidance"
+assert_contains "$output" "#journals" || fail "Child should have channel guidance"
+# Should also include child's own prompt
+assert_contains "$output" "Child prompt" || fail "Child should include own prompt"
 
-pass "Nested persona inherits base correctly"
+pass "Child inherits base via extends correctly"
 
 # -----------------------------------------------------------------------------
 # Summary
