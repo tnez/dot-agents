@@ -32,11 +32,12 @@ export interface PersonaFrontmatter {
   /** Enabled skills - glob patterns, use ! for negation */
   skills?: string[];
   /**
-   * Control inheritance from internal _base persona
+   * Control inheritance chain
    * - undefined: implicit inheritance from _base (default)
-   * - "none": opt out of _base inheritance
+   * - "none": opt out of all inheritance
+   * - string: name of parent persona to extend (e.g., "odin-base")
    */
-  extends?: "none";
+  extends?: string;
 }
 
 /**
@@ -64,6 +65,22 @@ export interface ResolvedCommands {
 }
 
 /**
+ * MCP server configuration (matches Claude's mcp.json format)
+ */
+export interface McpServerConfig {
+  command: string;
+  args?: string[];
+  env?: Record<string, string>;
+}
+
+/**
+ * MCP configuration (matches Claude's mcp.json format)
+ */
+export interface McpConfig {
+  mcpServers: Record<string, McpServerConfig>;
+}
+
+/**
  * Resolved persona with all inheritance applied and arrays merged
  */
 export interface ResolvedPersona {
@@ -81,4 +98,6 @@ export interface ResolvedPersona {
   path: string;
   /** Inheritance chain (root to leaf) */
   inheritanceChain: string[];
+  /** Merged MCP configuration (from mcp.json files in inheritance chain) */
+  mcpConfig?: McpConfig;
 }

@@ -6,3 +6,4 @@ export { showCommand } from "./show.js";
 export { scheduleCommand } from "./schedule.js";
 export { daemonCommand } from "./daemon.js";
 export { channelsCommand } from "./channel.js";
+export { personasCommand } from "./personas.js";

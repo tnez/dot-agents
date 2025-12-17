@@ -1,4 +1,4 @@
-import { readdir, stat } from "node:fs/promises";
+import { readdir, stat, readFile } from "node:fs/promises";
 import { join, dirname, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadMarkdownFile } from "./frontmatter.js";
@@ -9,9 +9,11 @@ import type {
   ResolvedCommands,
   CommandSpec,
   CommandModes,
+  McpConfig,
 } from "./types/persona.js";
 
 const PERSONA_FILENAME = "PERSONA.md";
+const MCP_FILENAME = "mcp.json";
 
 /**
  * Get the path to internal personas bundled with the package.
@@ -106,6 +108,38 @@ async function hasPersonaFile(dirPath: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * Load mcp.json from a persona directory if it exists
+ */
+async function loadMcpConfig(personaPath: string): Promise<McpConfig | null> {
+  try {
+    const filePath = join(personaPath, MCP_FILENAME);
+    const content = await readFile(filePath, "utf-8");
+    return JSON.parse(content) as McpConfig;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Merge MCP configs (child overrides parent for same server name)
+ */
+function mergeMcpConfigs(
+  parent: McpConfig | null,
+  child: McpConfig | null
+): McpConfig | null {
+  if (!parent && !child) return null;
+  if (!parent) return child;
+  if (!child) return parent;
+
+  return {
+    mcpServers: {
+      ...parent.mcpServers,
+      ...child.mcpServers,
+    },
+  };
 }
 
 /**
@@ -232,6 +266,16 @@ export function deepMerge<T extends Record<string, unknown>>(
 }
 
 /**
+ * Combine prompts from parent and child with separator
+ */
+function combinePrompts(parent?: string, child?: string): string | undefined {
+  if (!parent && !child) return undefined;
+  if (!parent) return child;
+  if (!child) return parent;
+  return parent + "\n\n---\n\n" + child;
+}
+
+/**
  * Merge two personas (child inherits from parent)
  */
 export function mergePersonas(parent: Persona, child: Persona): Persona {
@@ -249,44 +293,88 @@ export function mergePersonas(parent: Persona, child: Persona): Persona {
     // Arrays: merge with negation
     skills: mergeArraysWithNegation(parent.skills ?? [], child.skills ?? []),
 
-    // Prompt: child replaces entirely if present
-    prompt: child.prompt ?? parent.prompt,
+    // Prompt: combine parent and child prompts
+    prompt: combinePrompts(parent.prompt, child.prompt),
   };
 }
 
 /**
+ * Build the explicit extends chain by following persona references
+ * Returns personas from root to leaf (e.g., [odin-base, executive-assistant])
+ */
+async function buildExtendsChain(
+  persona: Persona,
+  personasRoot: string,
+  visited: Set<string> = new Set()
+): Promise<Persona[]> {
+  // Detect circular inheritance
+  if (visited.has(persona.path)) {
+    throw new Error(`Circular inheritance detected: ${persona.path}`);
+  }
+  visited.add(persona.path);
+
+  const extendsValue = persona.extends;
+
+  // No extends or extends: "none" - this is the root
+  if (!extendsValue || extendsValue === "none") {
+    return [persona];
+  }
+
+  // extends: "_base" means inherit from internal base (handled later)
+  if (extendsValue === "_base") {
+    return [persona];
+  }
+
+  // extends: "<persona-name>" - find and load the parent persona
+  const parentPath = `${personasRoot}/${extendsValue}`;
+  if (!(await hasPersonaFile(parentPath))) {
+    throw new Error(
+      `Parent persona "${extendsValue}" not found at ${parentPath} (extended by ${persona.name})`
+    );
+  }
+
+  const parentPersona = await loadPersona(parentPath);
+  const parentChain = await buildExtendsChain(parentPersona, personasRoot, visited);
+
+  return [...parentChain, persona];
+}
+
+/**
  * Resolve a persona with full inheritance chain
+ * Supports explicit extends field for multi-level inheritance
  * Includes implicit inheritance from internal _base persona unless extends: "none"
  */
 export async function resolvePersona(
   personaPath: string,
   personasRoot: string
 ): Promise<ResolvedPersona> {
-  const chain = buildInheritanceChain(personaPath, personasRoot);
-  const inheritanceChain: string[] = [];
-
-  let resolved: Persona | null = null;
-
-  for (const path of chain) {
-    if (await hasPersonaFile(path)) {
-      const persona = await loadPersona(path);
-      inheritanceChain.push(path);
-
-      if (resolved === null) {
-        resolved = persona;
-      } else {
-        resolved = mergePersonas(resolved, persona);
-      }
-    }
-  }
-
-  if (resolved === null) {
+  // Load the target persona
+  if (!(await hasPersonaFile(personaPath))) {
     throw new Error(`No persona found at path: ${personaPath}`);
   }
+  const targetPersona = await loadPersona(personaPath);
 
-  // Check if persona opts out of internal base inheritance
-  // The root persona in the chain determines inheritance behavior
-  const rootPersona = await loadPersona(inheritanceChain[0]);
+  // Build the extends chain (follows explicit extends references)
+  const extendsChain = await buildExtendsChain(targetPersona, personasRoot);
+
+  // Merge personas from root to leaf
+  let resolved: Persona = extendsChain[0];
+  for (let i = 1; i < extendsChain.length; i++) {
+    resolved = mergePersonas(resolved, extendsChain[i]);
+  }
+
+  // Build inheritance chain paths
+  const inheritanceChain = extendsChain.map((p) => p.path);
+
+  // Load and merge MCP configs from inheritance chain
+  let mcpConfig: McpConfig | null = null;
+  for (const persona of extendsChain) {
+    const personaMcp = await loadMcpConfig(persona.path);
+    mcpConfig = mergeMcpConfigs(mcpConfig, personaMcp);
+  }
+
+  // Check if the root persona opts out of internal base inheritance
+  const rootPersona = extendsChain[0];
   const shouldInheritBase = rootPersona.extends !== "none";
 
   // Load and merge internal _base persona (prepend its prompt)
@@ -313,6 +401,7 @@ export async function resolvePersona(
     prompt: finalPrompt,
     path: resolved.path,
     inheritanceChain,
+    mcpConfig: mcpConfig ?? undefined,
   };
 }
 
