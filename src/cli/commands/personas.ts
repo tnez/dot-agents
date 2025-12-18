@@ -182,10 +182,26 @@ personasCommand
         }
       }
 
+      // Build the full prompt (system prompt + user prompt)
+      const promptParts: string[] = [];
+      if (persona.prompt) {
+        promptParts.push(persona.prompt);
+      }
+      if (options.prompt) {
+        if (promptParts.length > 0) {
+          promptParts.push("\n---\n");
+        }
+        promptParts.push(options.prompt);
+      }
+      const fullPrompt = promptParts.join("\n");
+
       if (options.verbose) {
         console.log(chalk.dim(`Execution mode: ${interactive ? "interactive" : "headless"}`));
         console.log(chalk.dim(`Working dir: ${workingDir}`));
         console.log(chalk.dim(`Command: ${cmds[0]}`));
+        if (persona.prompt) {
+          console.log(chalk.dim(`System prompt: ${persona.prompt.substring(0, 100)}...`));
+        }
       }
 
       // Try each command in order
@@ -207,8 +223,8 @@ personasCommand
           }
 
           if (interactive) {
-            // Interactive mode: inherit stdio for terminal interaction
-            const execArgs = options.prompt ? [...args, options.prompt] : args;
+            // Interactive mode: pass full prompt as CLI argument, inherit stdio
+            const execArgs = fullPrompt ? [...args, fullPrompt] : args;
 
             const result = await execa(command, execArgs, {
               cwd: workingDir,
@@ -224,10 +240,10 @@ personasCommand
 
             lastError = new Error(`Command exited with code ${result.exitCode}`);
           } else {
-            // Headless mode: pass prompt via stdin or argument
-            if (options.prompt) {
+            // Headless mode: pass full prompt via stdin
+            if (fullPrompt) {
               const result = await execa(command, args, {
-                input: options.prompt,
+                input: fullPrompt,
                 cwd: workingDir,
                 env,
                 reject: false,
@@ -248,7 +264,7 @@ personasCommand
 
               lastError = new Error(`Command exited with code ${result.exitCode}`);
             } else {
-              console.error(chalk.red("Headless mode requires --prompt"));
+              console.error(chalk.red("Headless mode requires --prompt or a persona with a system prompt"));
               process.exit(1);
             }
           }

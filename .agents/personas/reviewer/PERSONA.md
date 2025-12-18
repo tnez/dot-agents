@@ -3,8 +3,10 @@ name: reviewer
 description: Code review and quality assessment
 cmd:
   headless:
-    - "claude --print"
-    - "claude -p"
+    - "claude --print --permission-mode bypassPermissions"
+    - "claude -p --permission-mode bypassPermissions"
+  interactive:
+    - "claude"
 env:
   CLAUDE_MODEL: sonnet
 ---

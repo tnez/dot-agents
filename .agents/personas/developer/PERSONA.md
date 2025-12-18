@@ -3,8 +3,8 @@ name: developer
 description: Development work on dot-agents features and bug fixes
 cmd:
   headless:
-    - "claude --print"
-    - "claude -p"
+    - "claude --print --permission-mode bypassPermissions"
+    - "claude -p --permission-mode bypassPermissions"
   interactive:
     - "claude"
 env:
