@@ -74,6 +74,7 @@ channelsCommand
   .option("--from <from>", "Sender identifier")
   .option("--run-id <runId>", "Run ID for workflow context")
   .option("--tags <tags>", "Comma-separated tags")
+  .option("--thread <threadId>", "Thread ID to add message to (default: creates new thread)")
   .action(async (channel, message, options) => {
     try {
       if (!isChannelName(channel)) {
@@ -84,12 +85,16 @@ channelsCommand
       }
 
       const config = await requireConfig();
-      const meta: { from: string; run_id?: string; tags?: string[] } = {
+      const meta: { from: string; run_id?: string; tags?: string[]; thread_id?: string } = {
         from: resolveFrom(options.from),
       };
 
       if (options.runId) meta.run_id = options.runId;
       if (options.tags) meta.tags = options.tags.split(",").map((t: string) => t.trim());
+
+      // Every message belongs to a thread - use provided or create new
+      const threadId = options.thread || crypto.randomUUID();
+      meta.thread_id = threadId;
 
       const messageId = await publishMessage(
         config.channelsDir,
@@ -100,6 +105,7 @@ channelsCommand
 
       console.log(chalk.green(`Published to ${channel}`));
       console.log(chalk.dim(`  Message ID: ${messageId}`));
+      console.log(chalk.dim(`  Thread ID: ${threadId}`));
     } catch (error) {
       console.error(chalk.red(`Error: ${(error as Error).message}`));
       process.exit(1);
@@ -112,6 +118,7 @@ channelsCommand
   .argument("<channel>", "Channel name (e.g., #status)")
   .option("-l, --limit <n>", "Number of messages to show", "10")
   .option("--since <duration>", "Show messages since duration (e.g., 24h, 7d)")
+  .option("--thread <threadId>", "Filter messages by thread ID")
   .action(async (channel, options) => {
     try {
       if (!isChannelName(channel)) {
@@ -133,7 +140,8 @@ channelsCommand
         config.channelsDir,
         channel,
         limit,
-        since
+        since,
+        options.thread
       );
 
       if (messages.length === 0) {
@@ -150,6 +158,9 @@ channelsCommand
 
         console.log(chalk.white(`  [${timestamp}] ${chalk.cyan(from)} ${chalk.dim(`(${host})`)}`));
         console.log(chalk.dim(`    ID: ${msg.id}`));
+        if (msg.meta.thread_id) {
+          console.log(chalk.dim(`    Thread: ${msg.meta.thread_id}`));
+        }
 
         const lines = msg.content.split("\n");
         for (const line of lines) {

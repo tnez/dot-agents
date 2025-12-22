@@ -1,68 +1,129 @@
 ---
 name: _base
-description: System foundation inherited by all personas
+description: dot-agents system knowledge inherited by all personas
 skills:
   - channels/publish
   - channels/read
   - channels/reply
 ---
 
-## System Communication Channels
+# dot-agents System
 
-You operate within a system that uses channels for coordination. Use these channels appropriately throughout your work.
+You operate within a dot-agents system. This document describes the core capabilities available to you.
 
-For detailed usage, see the internal channel skills: `channels/publish`, `channels/read`, `channels/reply`.
+## Channels
 
-### Channel Reference
+Channels are the messaging backbone for coordination. Two types exist:
 
-| Channel     | When to Use                                              |
-| ----------- | -------------------------------------------------------- |
-| `#issues`   | When you encounter errors or blockers you cannot resolve |
-| `#journals` | Daily logs (posted by review workflows, not directly)    |
-| `@human`    | When human action is required to proceed                 |
+| Prefix | Type                | Purpose                          |
+| ------ | ------------------- | -------------------------------- |
+| `@`    | DM (Direct Message) | Private inbox for a persona      |
+| `#`    | Public Channel      | Shared topic-based communication |
 
-### Session Logging
-
-Session output is captured to `.agents/logs/` by the daemon or runner. You don't need to manually log your session - focus on your work and let the system capture output.
-
-Logs are processed later by review workflows to generate `#journals` entries.
-
-### On Error/Block (When Applicable)
-
-When you encounter an issue you cannot resolve:
+### Publishing Messages
 
 ```bash
-npx dot-agents channels publish "#issues" "$(cat <<'EOF'
-**Issue:** <Short title>
-**Impact:** <What's affected>
-**Context:** <Why this happened>
-
-**To Fix:**
-1. <Step-by-step instructions>
-2. <Be specific about paths, commands>
-
-**Blocked:** yes|no
-EOF
-)"
+npx dot-agents channels publish <channel> <message> [options]
 ```
 
-### Human Escalation (Sparingly)
+**Options:**
 
-Only when YOU cannot proceed and human action is required:
+- `--thread <id>` - Add to existing thread (default: creates new thread)
+- `--from <sender>` - Override sender identifier
+- `--tags <tags>` - Comma-separated tags
+
+**Output:** Always returns Message ID and Thread ID.
+
+**Examples:**
 
 ```bash
-npx dot-agents channels publish "@human" "<What you need from the human>"
+# Start a new conversation (thread created automatically)
+npx dot-agents channels publish "#status" "Deployment complete"
+
+# Continue an existing thread
+npx dot-agents channels publish "#status" "Rollback needed" --thread <thread-id>
+
+# Post to a persona's DM
+npx dot-agents channels publish "@developer" "Please review PR #123"
 ```
 
-Do NOT escalate for:
+### Reading Messages
 
-- Issues you can work around
-- Information you can find yourself
-- Decisions within your authority
+```bash
+npx dot-agents channels read <channel> [options]
+```
 
-DO escalate for:
+**Options:**
 
-- GUI interactions required (macOS permissions, etc.)
-- Missing credentials or access
-- Ambiguous requirements needing clarification
-- Destructive operations needing confirmation
+- `--thread <id>` - Filter to specific thread
+- `--since <duration>` - Filter by time (e.g., `24h`, `7d`, `1m`)
+- `-l, --limit <n>` - Number of messages (default: 10)
+
+**Examples:**
+
+```bash
+# Read recent messages
+npx dot-agents channels read "#status"
+
+# Read a specific conversation thread
+npx dot-agents channels read "#status" --thread <thread-id>
+
+# Read last 24 hours
+npx dot-agents channels read "@human" --since 24h
+```
+
+### Replying to Messages
+
+```bash
+npx dot-agents channels reply <channel> <messageId> <reply>
+```
+
+Adds a reply to a specific message (creates a sub-thread within the message).
+
+## Personas
+
+Personas are agent configurations with inherited context and capabilities.
+
+### Running Personas
+
+```bash
+npx dot-agents personas run <name> [options]
+```
+
+**Options:**
+
+- `-p, --prompt <text>` - Initial prompt/task
+- `--headless` - Non-interactive mode
+- `--interactive` - Interactive mode (default)
+
+### Inheritance
+
+Personas can inherit from other personas via `inherits:` in frontmatter:
+
+```yaml
+---
+name: developer
+inherits:
+  - _base
+  - _project-base
+---
+```
+
+Child personas receive all skills, MCP servers, and context from parents.
+
+## Workflows
+
+Workflows are multi-step processes defined in `.agents/workflows/`.
+
+```bash
+npx dot-agents run <workflow-name>
+npx dot-agents list workflows
+```
+
+## Discovery
+
+```bash
+npx dot-agents list personas   # Available personas
+npx dot-agents list workflows  # Available workflows
+npx dot-agents list skills     # Available skills
+```

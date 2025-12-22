@@ -142,6 +142,7 @@ export async function publishMessage(
   if (meta?.from) frontmatter.from = meta.from;
   if (meta?.run_id) frontmatter.run_id = meta.run_id;
   if (meta?.tags?.length) frontmatter.tags = meta.tags;
+  if (meta?.thread_id) frontmatter.thread_id = meta.thread_id;
   messageContent = `---\n${stringifyYaml(frontmatter)}---\n\n`;
   messageContent += content + "\n";
 
@@ -157,7 +158,8 @@ export async function readChannel(
   channelsDir: string,
   channelName: string,
   limit?: number,
-  since?: Date
+  since?: Date,
+  threadId?: string
 ): Promise<ChannelMessage[]> {
   const channelPath = join(channelsDir, channelName);
 
@@ -179,6 +181,23 @@ export async function readChannel(
 
     const messageDate = new Date(entry.name);
     if (since && messageDate < since) continue;
+
+    // If filtering by thread, we need to read and check frontmatter first
+    if (threadId) {
+      const messagePath = join(messageDir, MESSAGE_FILE);
+      if (!(await isFile(messagePath))) continue;
+      try {
+        const content = await readFile(messagePath, "utf-8");
+        if (content.startsWith("---\n")) {
+          const parsed = parseFrontmatter<ChannelMessageMeta>(content);
+          if (parsed.frontmatter.thread_id !== threadId) continue;
+        } else {
+          continue; // No frontmatter means no thread_id
+        }
+      } catch {
+        continue;
+      }
+    }
 
     try {
       const content = await readFile(messagePath, "utf-8");

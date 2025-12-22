@@ -181,6 +181,18 @@ export async function loadInternalBase(): Promise<Persona | null> {
 }
 
 /**
+ * Load the project's _project persona if it exists
+ * Returns null if not found (graceful degradation)
+ */
+export async function loadProjectBase(personasRoot: string): Promise<Persona | null> {
+  const projectPath = join(personasRoot, "_project");
+  if (await hasPersonaFile(projectPath)) {
+    return await loadPersona(projectPath);
+  }
+  return null;
+}
+
+/**
  * Build the inheritance chain for a persona path
  * Returns paths from root to leaf (e.g., ["claude", "claude/autonomous"])
  */
@@ -320,8 +332,8 @@ async function buildExtendsChain(
     return [persona];
   }
 
-  // extends: "_base" means inherit from internal base (handled later)
-  if (extendsValue === "_base") {
+  // extends: "_base" or "_project" means inherit from auto-inherited bases (handled later)
+  if (extendsValue === "_base" || extendsValue === "_project") {
     return [persona];
   }
 
@@ -373,13 +385,25 @@ export async function resolvePersona(
     mcpConfig = mergeMcpConfigs(mcpConfig, personaMcp);
   }
 
-  // Check if the root persona opts out of internal base inheritance
+  // Check if the root persona opts out of automatic base inheritance
   const rootPersona = extendsChain[0];
-  const shouldInheritBase = rootPersona.extends !== "none";
+  const shouldInheritBases = rootPersona.extends !== "none";
 
-  // Load and merge internal _base persona (prepend its prompt)
   let finalPrompt = resolved.prompt;
-  if (shouldInheritBase) {
+
+  // Auto-inherit _project (project conventions) - prepended after _base
+  if (shouldInheritBases) {
+    const project = await loadProjectBase(personasRoot);
+    if (project?.prompt) {
+      // Prepend project prompt with separator
+      finalPrompt = project.prompt + (finalPrompt ? "\n\n---\n\n" + finalPrompt : "");
+      // Add project to the start of inheritance chain
+      inheritanceChain.unshift(project.path);
+    }
+  }
+
+  // Auto-inherit _base (dot-agents system knowledge) - prepended first
+  if (shouldInheritBases) {
     const base = await loadInternalBase();
     if (base?.prompt) {
       // Prepend base prompt with separator

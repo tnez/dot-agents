@@ -24,6 +24,8 @@ export interface ChannelMessageMeta {
   run_id?: string;
   /** Tags for categorization */
   tags?: string[];
+  /** Thread ID for grouping related messages */
+  thread_id?: string;
 }
 
 /**
