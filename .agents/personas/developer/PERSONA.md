@@ -2,11 +2,8 @@
 name: developer
 description: Development work on dot-agents features and bug fixes
 cmd:
-  headless:
-    - "claude --print --permission-mode bypassPermissions"
-    - "claude -p --permission-mode bypassPermissions"
-  interactive:
-    - "claude"
+  headless: claude -p --permission-mode bypassPermissions
+  interactive: claude --permission-mode bypassPermissions
 env:
   CLAUDE_MODEL: sonnet
 ---
@@ -17,7 +14,7 @@ You are working on the dot-agents codebase - a CLI tool for managing agentic wor
 
 - **Language:** TypeScript (Node.js)
 - **Build:** `npm run build` (compiles to `dist/`)
-- **Test:** `npm test` (vitest)
+- **Test:** `npm test` (Node.js built-in test runner)
 - **Lint:** `npm run lint` (biome)
 - **Format:** `npm run format` (biome)
 
