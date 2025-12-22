@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { parse as parseYaml } from "yaml";
+import { parse as parseYaml, stringify as stringifyYaml } from "yaml";
 
 const FRONTMATTER_REGEX = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/;
 
@@ -47,4 +47,12 @@ export async function loadMarkdownFile<T>(
 ): Promise<ParsedMarkdown<T>> {
   const content = await readFile(filePath, "utf-8");
   return parseFrontmatter<T>(content);
+}
+
+/**
+ * Stringify frontmatter and body back to markdown format
+ */
+export function stringifyFrontmatter<T>(frontmatter: T, body: string): string {
+  const yamlContent = stringifyYaml(frontmatter, { indent: 2 }).trim();
+  return `---\n${yamlContent}\n---\n\n${body}`;
 }

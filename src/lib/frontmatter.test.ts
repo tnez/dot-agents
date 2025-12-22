@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert";
-import { parseFrontmatter, hasFrontmatter } from "./frontmatter.ts";
+import { parseFrontmatter, hasFrontmatter } from "./frontmatter.js";
 
 describe("parseFrontmatter", () => {
   it("parses valid frontmatter", () => {

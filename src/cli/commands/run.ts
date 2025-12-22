@@ -6,7 +6,7 @@ import {
   resolvePersona,
   validateInputs,
 } from "../../lib/index.js";
-import { runWorkflow, writeExecutionLog } from "../lib/runner.js";
+import { runWorkflow } from "../lib/runner.js";
 
 export const runCommand = new Command("run")
   .description("Run a workflow")
@@ -115,6 +115,7 @@ export const runCommand = new Command("run")
         timeout: options.timeout,
         dryRun: options.dryRun,
         interactive,
+        sessionsDir: config.sessionsDir,
       });
 
       if (options.dryRun) {
@@ -122,18 +123,11 @@ export const runCommand = new Command("run")
         return;
       }
 
-      // Write log
-      const logPath = await writeExecutionLog(
-        config.sessionsDir,
-        { workflowName: workflow.name, personaName: persona.name },
-        result
-      );
-
       if (result.success) {
         console.log(chalk.green(`\n✓ Workflow completed successfully`));
         console.log(chalk.dim(`  Run ID: ${result.runId}`));
         console.log(chalk.dim(`  Duration: ${result.duration}ms`));
-        console.log(chalk.dim(`  Log: ${logPath}`));
+        console.log(chalk.dim(`  Session: ${config.sessionsDir}`));
 
         if (options.verbose && result.stdout) {
           console.log(chalk.dim("\n--- Output ---"));
@@ -143,7 +137,7 @@ export const runCommand = new Command("run")
         console.error(chalk.red(`\n✗ Workflow failed`));
         console.error(chalk.dim(`  Run ID: ${result.runId}`));
         console.error(chalk.dim(`  Exit code: ${result.exitCode}`));
-        console.error(chalk.dim(`  Log: ${logPath}`));
+        console.error(chalk.dim(`  Session: ${config.sessionsDir}`));
 
         if (result.stderr) {
           console.error(chalk.red("\n--- Error ---"));

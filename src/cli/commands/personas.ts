@@ -3,7 +3,7 @@ import chalk from "chalk";
 import { execa } from "execa";
 import { relative } from "node:path";
 import { writeFile, mkdir } from "node:fs/promises";
-import { tmpdir } from "node:os";
+import { tmpdir, hostname } from "node:os";
 import { join } from "node:path";
 import {
   requireConfig,
@@ -12,6 +12,10 @@ import {
   resolvePersona,
   expandVariables,
   createExecutionContext,
+  createSession,
+  readSession,
+  finalizeSession,
+  type Session,
 } from "../../lib/index.js";
 import type { McpConfig } from "../../lib/types/persona.js";
 
@@ -91,8 +95,12 @@ personasCommand
   .option("--interactive", "Run in interactive mode (default)")
   .option("--headless", "Run in headless/print mode")
   .option("-w, --working-dir <path>", "Working directory")
+  .option("-s, --session-id <id>", "Resume an existing session")
+  .option("--upstream <address>", "Upstream return address (e.g., @odin:dottie --session-id abc)")
   .option("-v, --verbose", "Verbose output")
   .action(async (name, options) => {
+    const startedAt = new Date();
+
     try {
       const config = await requireConfig();
 
@@ -146,10 +154,50 @@ personasCommand
         process.exit(1);
       }
 
-      // Create execution context
+      // Determine working directory
+      const workingDir = options.workingDir ?? process.cwd();
+
+      // Handle session: resume existing or create new
+      let session: Session;
+      if (options.sessionId) {
+        // Resume existing session
+        const existing = await readSession(config.sessionsDir, options.sessionId);
+        if (!existing) {
+          console.error(chalk.red(`Session not found: ${options.sessionId}`));
+          process.exit(1);
+        }
+        session = existing;
+        if (options.verbose) {
+          console.log(chalk.dim(`Resuming session: ${session.id}`));
+        }
+      } else {
+        // Create new session
+        session = await createSession({
+          sessionsDir: config.sessionsDir,
+          runtime: {
+            hostname: hostname(),
+            executionMode: interactive ? "interactive" : "headless",
+            triggerType: "manual",
+            workingDir,
+          },
+          upstream: options.upstream,
+          goal: options.prompt ? `Run ${persona.name}: ${options.prompt.substring(0, 50)}...` : `Run ${persona.name}`,
+          persona: {
+            name: persona.name,
+            inheritanceChain: persona.inheritanceChain,
+          },
+        });
+        if (options.verbose) {
+          console.log(chalk.dim(`Created session: ${session.id}`));
+        }
+      }
+
+      // Create execution context with session
       const context = createExecutionContext({
         PERSONA_NAME: persona.name,
         PERSONA_DIR: persona.path,
+        SESSION_DIR: session.path,
+        SESSION_ID: session.id,
       });
 
       // Build environment
@@ -157,6 +205,8 @@ personasCommand
         ...process.env,
         ...persona.env,
         DOT_AGENTS_PERSONA: persona.path,
+        DOT_AGENTS_SESSION_DIR: session.path,
+        DOT_AGENTS_SESSION_ID: session.id,
       } as Record<string, string>;
 
       // Expand environment variable values
@@ -165,9 +215,6 @@ personasCommand
           env[key] = expandVariables(value, context as Record<string, string>, env);
         }
       }
-
-      // Determine working directory
-      const workingDir = options.workingDir ?? process.cwd();
 
       // Write MCP config to temp file if present
       let mcpConfigPath: string | undefined;
@@ -207,6 +254,9 @@ personasCommand
       // Try each command in order
       let lastError: Error | null = null;
       let success = false;
+      let stdout = "";
+      let stderr = "";
+      let exitCode = 1;
 
       for (const cmd of cmds) {
         try {
@@ -224,6 +274,11 @@ personasCommand
 
           if (interactive) {
             // Interactive mode: pass full prompt as CLI argument, inherit stdio
+            // Show session info before starting
+            console.log(chalk.dim(`Session: ${session.id}`));
+            console.log(chalk.dim(`Session dir: ${session.path}`));
+            console.log();
+
             const execArgs = fullPrompt ? [...args, fullPrompt] : args;
 
             const result = await execa(command, execArgs, {
@@ -233,12 +288,13 @@ personasCommand
               reject: false,
             });
 
-            if (result.exitCode === 0) {
+            exitCode = result.exitCode ?? 1;
+            if (exitCode === 0) {
               success = true;
               break;
             }
 
-            lastError = new Error(`Command exited with code ${result.exitCode}`);
+            lastError = new Error(`Command exited with code ${exitCode}`);
           } else {
             // Headless mode: pass full prompt via stdin
             if (fullPrompt) {
@@ -249,20 +305,24 @@ personasCommand
                 reject: false,
               });
 
-              if (result.stdout) {
-                console.log(result.stdout);
+              stdout = result.stdout ?? "";
+              stderr = result.stderr ?? "";
+              exitCode = result.exitCode ?? 1;
+
+              if (stdout) {
+                console.log(stdout);
               }
 
-              if (result.exitCode === 0) {
+              if (exitCode === 0) {
                 success = true;
                 break;
               }
 
-              if (result.stderr) {
-                console.error(result.stderr);
+              if (stderr) {
+                console.error(stderr);
               }
 
-              lastError = new Error(`Command exited with code ${result.exitCode}`);
+              lastError = new Error(`Command exited with code ${exitCode}`);
             } else {
               console.error(chalk.red("Headless mode requires --prompt or a persona with a system prompt"));
               process.exit(1);
@@ -273,9 +333,31 @@ personasCommand
         }
       }
 
+      const endedAt = new Date();
+      const duration = endedAt.getTime() - startedAt.getTime();
+
+      // Finalize session for headless mode (interactive sessions are managed by the user)
+      if (!interactive) {
+        await finalizeSession(session, {
+          success,
+          exitCode,
+          duration,
+          error: lastError?.message,
+          stdout,
+          stderr,
+        });
+      }
+
       if (!success) {
         console.error(chalk.red(`Failed to run persona: ${lastError?.message ?? "unknown error"}`));
-        process.exit(1);
+        process.exit(exitCode);
+      }
+
+      // Show session info after interactive session ends
+      if (interactive) {
+        console.log();
+        console.log(chalk.dim(`Session ended: ${session.id}`));
+        console.log(chalk.dim(`To resume: npx dot-agents personas run ${name} --session-id ${session.id}`));
       }
     } catch (error) {
       console.error(chalk.red(`Error: ${(error as Error).message}`));

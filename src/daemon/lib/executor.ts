@@ -1,6 +1,6 @@
 import { execa } from "execa";
-import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { hostname } from "node:os";
 import {
   type Workflow,
   type ResolvedPersona,
@@ -12,6 +12,9 @@ import {
   processTemplate,
   expandVariables,
   getInputDefaults,
+  createSession,
+  finalizeSession,
+  type Session,
 } from "../../lib/index.js";
 
 /**
@@ -111,12 +114,37 @@ export class Executor {
       this.config.personasDir
     );
 
+    // Determine working directory early (needed for session creation)
+    let workingDir = workflow.working_dir ?? process.cwd();
+
+    // Create session
+    const session = await createSession({
+      sessionsDir: this.config.sessionsDir,
+      runtime: {
+        hostname: hostname(),
+        executionMode: interactive ? "interactive" : "headless",
+        triggerType: "cron",
+        workingDir,
+      },
+      goal: `Run workflow: ${workflow.name}`,
+      persona: {
+        name: persona.name,
+        inheritanceChain: persona.inheritanceChain,
+      },
+      workflow: {
+        name: workflow.name,
+        path: workflow.path,
+        inputs: inputOverrides,
+      },
+    });
+
     const context = createExecutionContext({
       WORKFLOW_NAME: workflow.name,
       WORKFLOW_DIR: workflow.path,
       PERSONA_NAME: persona.name,
       PERSONA_DIR: persona.path,
       AGENTS_DIR: this.config.agentsDir,
+      SESSION_DIR: session.path,
     });
 
     // Merge inputs
@@ -143,8 +171,7 @@ export class Executor {
       }
     }
 
-    // Working directory
-    let workingDir = workflow.working_dir ?? process.cwd();
+    // Expand working directory variables
     workingDir = expandVariables(
       workingDir,
       { ...context, ...(inputs as Record<string, string>) },
@@ -171,7 +198,7 @@ export class Executor {
 
     if (!cmds) {
       const endedAt = new Date();
-      return {
+      const result: ExecutionResult = {
         success: false,
         exitCode: 1,
         stdout: "",
@@ -182,6 +209,15 @@ export class Executor {
         endedAt,
         error: `Unsupported execution mode: ${interactive ? "interactive" : "headless"}`,
       };
+      // Finalize session for error
+      await finalizeSession(session, {
+        success: result.success,
+        exitCode: result.exitCode,
+        duration: result.duration,
+        error: result.error,
+        stderr: result.stderr,
+      });
+      return result;
     }
 
     // Try each command
@@ -243,8 +279,15 @@ export class Executor {
       };
     }
 
-    // Write session log
-    await this.writeSessionLog(workflow.name, persona.name, result);
+    // Finalize session
+    await finalizeSession(session, {
+      success: result.success,
+      exitCode: result.exitCode,
+      duration: result.duration,
+      error: result.error,
+      stdout: result.stdout,
+      stderr: result.stderr,
+    });
 
     return result;
   }
@@ -266,10 +309,27 @@ export class Executor {
       this.config.personasDir
     );
 
+    // Create session for DM invocation
+    const session = await createSession({
+      sessionsDir: this.config.sessionsDir,
+      runtime: {
+        hostname: hostname(),
+        executionMode: "headless",
+        triggerType: "dm",
+        workingDir: this.config.agentsDir,
+      },
+      goal: `DM invocation: ${personaName}`,
+      persona: {
+        name: persona.name,
+        inheritanceChain: persona.inheritanceChain,
+      },
+    });
+
     const context = createExecutionContext({
       PERSONA_NAME: persona.name,
       PERSONA_DIR: persona.path,
       AGENTS_DIR: this.config.agentsDir,
+      SESSION_DIR: session.path,
       INVOCATION_SOURCE: options.source ?? "dm",
       ...options.context,
     });
@@ -310,7 +370,7 @@ export class Executor {
 
     if (!cmds) {
       const endedAt = new Date();
-      return {
+      const result: ExecutionResult = {
         success: false,
         exitCode: 1,
         stdout: "",
@@ -321,6 +381,15 @@ export class Executor {
         endedAt,
         error: "Persona does not support headless mode",
       };
+      // Finalize session for error
+      await finalizeSession(session, {
+        success: result.success,
+        exitCode: result.exitCode,
+        duration: result.duration,
+        error: result.error,
+        stderr: result.stderr,
+      });
+      return result;
     }
 
     // Try each command
@@ -382,48 +451,16 @@ export class Executor {
       };
     }
 
-    // Write session log
-    await this.writeSessionLog(`dm:${options.source ?? personaName}`, persona.name, result);
+    // Finalize session
+    await finalizeSession(session, {
+      success: result.success,
+      exitCode: result.exitCode,
+      duration: result.duration,
+      error: result.error,
+      stdout: result.stdout,
+      stderr: result.stderr,
+    });
 
     return result;
-  }
-
-  /**
-   * Write execution log to sessions directory
-   */
-  private async writeSessionLog(
-    workflowName: string,
-    personaName: string,
-    result: ExecutionResult
-  ): Promise<string> {
-    await mkdir(this.config.sessionsDir, { recursive: true });
-
-    const timestamp = result.startedAt
-      .toISOString()
-      .replace(/[-:]/g, "")
-      .replace("T", "-")
-      .split(".")[0];
-
-    const filename = `${timestamp}.log`;
-    const logPath = join(this.config.sessionsDir, filename);
-
-    const logContent = `Run ID: ${result.runId}
-Workflow: ${workflowName}
-Persona: ${personaName}
-Started: ${result.startedAt.toISOString()}
-Ended: ${result.endedAt.toISOString()}
-Duration: ${result.duration}ms
-Exit Code: ${result.exitCode}
-Success: ${result.success}
-${result.error ? `Error: ${result.error}\n` : ""}
---- STDOUT ---
-${result.stdout}
-
---- STDERR ---
-${result.stderr}
-`;
-
-    await writeFile(logPath, logContent, "utf-8");
-    return logPath;
   }
 }

@@ -1,6 +1,7 @@
 import { execa, type ResultPromise } from "execa";
 import { mkdir, writeFile, access } from "node:fs/promises";
 import { join, dirname } from "node:path";
+import { hostname } from "node:os";
 import {
   type Workflow,
   type ResolvedPersona,
@@ -10,6 +11,9 @@ import {
   processTemplate,
   expandVariables,
   getInputDefaults,
+  createSession,
+  finalizeSession,
+  type Session,
 } from "../../lib/index.js";
 
 /**
@@ -53,6 +57,8 @@ export interface RunOptions {
   dryRun?: boolean;
   /** Run in interactive mode (persona must support it) */
   interactive?: boolean;
+  /** Sessions directory for creating session (optional - if provided, creates session) */
+  sessionsDir?: string;
 }
 
 /**
@@ -97,11 +103,42 @@ export async function runWorkflow(
   options: RunOptions = {}
 ): Promise<ExecutionResult> {
   const startedAt = new Date();
+  const interactive = options.interactive ?? false;
+
+  // Determine working directory early (needed for session creation)
+  let workingDir = options.workingDir ?? workflow.working_dir ?? process.cwd();
+
+  // Create session if sessionsDir provided
+  let session: Session | undefined;
+  if (options.sessionsDir) {
+    session = await createSession({
+      sessionsDir: options.sessionsDir,
+      runtime: {
+        hostname: hostname(),
+        executionMode: interactive ? "interactive" : "headless",
+        triggerType: "manual",
+        workingDir,
+      },
+      goal: `Run workflow: ${workflow.name}`,
+      persona: {
+        name: persona.name,
+        inheritanceChain: persona.inheritanceChain,
+      },
+      workflow: {
+        name: workflow.name,
+        path: workflow.path,
+        inputs: options.inputs,
+      },
+    });
+  }
+
   const context = createExecutionContext({
     WORKFLOW_NAME: workflow.name,
     WORKFLOW_DIR: workflow.path,
     PERSONA_NAME: persona.name,
     PERSONA_DIR: persona.path,
+    // Add session directory if available
+    ...(session ? { SESSION_DIR: session.path } : {}),
   });
 
   // Merge inputs: defaults < workflow inputs < options.inputs
@@ -125,8 +162,7 @@ export async function runWorkflow(
     }
   }
 
-  // Determine working directory
-  let workingDir = options.workingDir ?? workflow.working_dir ?? process.cwd();
+  // Expand working directory variables
   workingDir = expandVariables(
     workingDir,
     { ...context, ...(inputs as Record<string, string>) },
@@ -139,7 +175,6 @@ export async function runWorkflow(
   // Determine timeout
   // Interactive mode: no timeout (user controls session)
   // Headless mode: use explicit timeout or default to 10 minutes
-  const interactive = options.interactive ?? false;
   const timeoutMs = interactive
     ? undefined // No timeout for interactive sessions
     : options.timeout
@@ -148,9 +183,9 @@ export async function runWorkflow(
         ? parseDuration(workflow.timeout)
         : 10 * 60 * 1000; // Default 10 minutes for headless
 
-  // Dry run - just return the prompt
+  // Dry run - just return the prompt (no session finalization needed)
   if (options.dryRun) {
-    return {
+    const result: ExecutionResult = {
       success: true,
       exitCode: 0,
       stdout: prompt,
@@ -160,6 +195,16 @@ export async function runWorkflow(
       startedAt,
       endedAt: new Date(),
     };
+    // Finalize session for dry run
+    if (session) {
+      await finalizeSession(session, {
+        success: result.success,
+        exitCode: result.exitCode,
+        duration: result.duration,
+        stdout: `[Dry run - prompt only]\n${result.stdout}`,
+      });
+    }
+    return result;
   }
 
   // Select commands based on execution mode (interactive already defined above for timeout)
@@ -169,7 +214,7 @@ export async function runWorkflow(
 
   if (!cmds) {
     const endedAt = new Date();
-    return {
+    const result: ExecutionResult = {
       success: false,
       exitCode: 1,
       stdout: "",
@@ -180,6 +225,17 @@ export async function runWorkflow(
       endedAt,
       error: `Unsupported execution mode: ${interactive ? "interactive" : "headless"}`,
     };
+    // Finalize session for error
+    if (session) {
+      await finalizeSession(session, {
+        success: result.success,
+        exitCode: result.exitCode,
+        duration: result.duration,
+        error: result.error,
+        stderr: result.stderr,
+      });
+    }
+    return result;
   }
 
   // Try each command in order
@@ -241,7 +297,7 @@ export async function runWorkflow(
 
   if (!result) {
     const endedAt = new Date();
-    return {
+    result = {
       success: false,
       exitCode: 1,
       stdout: "",
@@ -252,6 +308,18 @@ export async function runWorkflow(
       endedAt,
       error: lastError?.message,
     };
+  }
+
+  // Finalize session if created
+  if (session) {
+    await finalizeSession(session, {
+      success: result.success,
+      exitCode: result.exitCode,
+      duration: result.duration,
+      error: result.error,
+      stdout: result.stdout,
+      stderr: result.stderr,
+    });
   }
 
   return result;

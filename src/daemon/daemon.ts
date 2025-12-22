@@ -12,6 +12,8 @@ import {
   listPersonas,
   loadPersona,
   getPackageInfo,
+  getRecentSessions as getRecentSessionsFromLib,
+  type SessionInfo as LibSessionInfo,
 } from "../lib/index.js";
 import { Scheduler, type ScheduledJob } from "./lib/scheduler.js";
 import { Executor } from "./lib/executor.js";
@@ -31,13 +33,20 @@ export interface DaemonOptions {
 }
 
 /**
- * Session log metadata
+ * Session info for API compatibility
+ * @deprecated Use SessionInfo from lib/session.ts instead
  */
 export interface SessionInfo {
-  filename: string;
+  /** Session ID (directory name) */
+  id: string;
+  /** Full path to session directory */
+  path: string;
+  /** When session started */
   timestamp: Date;
-  workflow?: string;
+  /** Persona name if available */
   persona?: string;
+  /** Workflow name if available */
+  workflow?: string;
 }
 
 /**
@@ -419,31 +428,20 @@ export class Daemon {
    * Get recent session logs
    */
   async getRecentSessions(limit: number = 20): Promise<SessionInfo[]> {
-    const sessions: SessionInfo[] = [];
-
-    try {
-      const files = await readdir(this.config!.sessionsDir);
-      const logFiles = files.filter((f) => f.endsWith(".log"));
-
-      // Sort by filename (which includes timestamp)
-      logFiles.sort().reverse();
-
-      for (const file of logFiles.slice(0, limit)) {
-        // Parse timestamp from filename: YYYYMMDD-HHMMSS.log
-        const match = file.match(/^(\d{8})-(\d{6})\.log$/);
-        if (match) {
-          const [, date, time] = match;
-          const timestamp = new Date(
-            `${date.slice(0, 4)}-${date.slice(4, 6)}-${date.slice(6, 8)}T${time.slice(0, 2)}:${time.slice(2, 4)}:${time.slice(4, 6)}`
-          );
-          sessions.push({ filename: file, timestamp });
-        }
-      }
-    } catch {
-      // Sessions directory might not exist yet
+    if (!this.config) {
+      return [];
     }
 
-    return sessions;
+    const libSessions = await getRecentSessionsFromLib(this.config.sessionsDir, limit);
+
+    // Convert to daemon SessionInfo format for API compatibility
+    return libSessions.map((s) => ({
+      id: s.id,
+      path: s.path,
+      timestamp: s.timestamp,
+      persona: s.metadata?.persona?.name,
+      workflow: s.metadata?.workflow?.name,
+    }));
   }
 
   /**
