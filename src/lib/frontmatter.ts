@@ -1,6 +1,8 @@
 import { readFile } from "node:fs/promises";
 import { parse as parseYaml } from "yaml";
 
+const FRONTMATTER_REGEX = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/;
+
 /**
  * Result of parsing a markdown file with YAML frontmatter
  */
@@ -12,11 +14,17 @@ export interface ParsedMarkdown<T> {
 }
 
 /**
+ * Check if content has YAML frontmatter
+ */
+export function hasFrontmatter(content: string): boolean {
+  return FRONTMATTER_REGEX.test(content);
+}
+
+/**
  * Parse YAML frontmatter from a markdown file
  */
 export function parseFrontmatter<T>(content: string): ParsedMarkdown<T> {
-  const frontmatterRegex = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/;
-  const match = content.match(frontmatterRegex);
+  const match = content.match(FRONTMATTER_REGEX);
 
   if (!match) {
     throw new Error("No YAML frontmatter found");

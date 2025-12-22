@@ -19,10 +19,12 @@
     }
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "postbuild": "echo '\n📦 Build complete. Run `npm link` to use locally.\n'",
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
+    "test": "node --experimental-strip-types --test src/**/*.test.ts",
+    "test:watch": "node --experimental-strip-types --test --watch src/**/*.test.ts",
     "clean": "rm -rf dist *.tsbuildinfo",
     "prepare": "git config core.hooksPath .githooks || true",
     "prepublishOnly": "npm run clean && npm run build"
