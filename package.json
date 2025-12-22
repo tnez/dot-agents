@@ -20,6 +20,7 @@
   },
   "scripts": {
     "build": "tsc",
+    "postbuild": "echo '\n📦 Build complete. Run `npm link` to use locally.\n'",
     "dev": "tsc --watch",
     "typecheck": "tsc --noEmit",
     "clean": "rm -rf dist *.tsbuildinfo",
