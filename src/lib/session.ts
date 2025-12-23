@@ -110,6 +110,8 @@ export interface Session {
   sessionFile: string;
   /** Session metadata */
   metadata: SessionMetadata;
+  /** Session content (body of session.md, without frontmatter) */
+  content?: string;
 }
 
 /**
@@ -334,14 +336,15 @@ export async function readSession(
   const sessionFile = join(sessionPath, "session.md");
 
   try {
-    const content = await readFile(sessionFile, "utf-8");
-    const { frontmatter } = parseFrontmatter<SessionMetadata>(content);
+    const rawContent = await readFile(sessionFile, "utf-8");
+    const { frontmatter, body } = parseFrontmatter<SessionMetadata>(rawContent);
 
     return {
       id: sessionId,
       path: sessionPath,
       sessionFile,
       metadata: frontmatter,
+      content: body.trim() || undefined,
     };
   } catch {
     return null;

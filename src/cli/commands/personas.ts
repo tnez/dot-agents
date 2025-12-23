@@ -229,11 +229,22 @@ personasCommand
         }
       }
 
-      // Build the full prompt (system prompt + user prompt)
+      // Build the full prompt (system prompt + session context + user prompt)
       const promptParts: string[] = [];
       if (persona.prompt) {
         promptParts.push(persona.prompt);
       }
+
+      // Include session context when resuming
+      if (options.sessionId && session.content) {
+        if (promptParts.length > 0) {
+          promptParts.push("\n---\n");
+        }
+        promptParts.push("# Previous Session Context\n");
+        promptParts.push("You are resuming a previous session. Here is the context from that session:\n");
+        promptParts.push(session.content);
+      }
+
       if (options.prompt) {
         if (promptParts.length > 0) {
           promptParts.push("\n---\n");
