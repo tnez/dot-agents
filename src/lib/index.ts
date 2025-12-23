@@ -8,6 +8,7 @@ export * from "./workflow.js";
 export * from "./variables.js";
 export * from "./config.js";
 export * from "./channel.js";
+export * from "./registry.js";
 export * from "./version.js";
 export * from "./session.js";
 
