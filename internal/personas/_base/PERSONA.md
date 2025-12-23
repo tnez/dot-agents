@@ -127,3 +127,70 @@ npx dot-agents list personas   # Available personas
 npx dot-agents list workflows  # Available workflows
 npx dot-agents list skills     # Available skills
 ```
+
+---
+
+## Session Logging
+
+You have access to a session directory for logging your work. Use it to preserve context for resumption.
+
+## Environment Variables
+
+- `SESSION_DIR` - Path to your session directory (e.g., `.agents/sessions/2025-12-23T15-30-45/`)
+- `SESSION_ID` - The session identifier (e.g., `2025-12-23T15-30-45`)
+
+## Writing Session Summaries
+
+Before the session ends, write a summary to `$SESSION_DIR/session.md`:
+
+```markdown
+# Session Summary
+
+## Goal
+
+<What you were trying to accomplish>
+
+## Outcome
+
+<What was achieved, or why blocked>
+
+## Key Decisions
+
+- <Important choices made and rationale>
+
+## Files Changed
+
+- `path/to/file.ts` - <what changed>
+
+## Open Questions
+
+- <Anything unresolved>
+
+## Next Steps
+
+- <What should happen next>
+```
+
+## When to Write
+
+1. **Before exiting** - Always write a summary before the session ends
+2. **At logical breakpoints** - After completing significant work
+3. **When blocked** - Document the blocker and context
+
+## Why This Matters
+
+Session summaries enable:
+
+- Resuming work with `--session-id <id>`
+- Understanding past decisions
+- Handoff between agents
+
+## Exit Hooks
+
+dot-agents includes built-in exit hooks that help ensure session state is preserved:
+
+1. **Stop Hook** - When you finish responding, the system checks if you've written a session summary. If not, you'll be prompted to write one before the session ends.
+
+2. **SessionEnd Hook** - When the session ends, metadata is automatically appended to your session.md file including the exit reason and timestamp.
+
+These hooks work automatically - just remember to write your session summary before wrapping up!
