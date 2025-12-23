@@ -7,6 +7,8 @@ import {
   readChannel,
   replyToMessage,
   isChannelName,
+  resolveChannelAddress,
+  parseChannelAddress,
 } from "../../lib/index.js";
 
 /**
@@ -69,7 +71,7 @@ channelsCommand
 channelsCommand
   .command("publish")
   .description("Publish a message to a channel")
-  .argument("<channel>", "Channel name (e.g., #status, @persona)")
+  .argument("<channel>", "Channel name (e.g., #status, @persona, @project/persona)")
   .argument("<message>", "Message content")
   .option("--from <from>", "Sender identifier")
   .option("--run-id <runId>", "Run ID for workflow context")
@@ -77,6 +79,7 @@ channelsCommand
   .option("--thread <threadId>", "Thread ID to add message to (default: creates new thread)")
   .action(async (channel, message, options) => {
     try {
+      // Validate basic format (must start with # or @)
       if (!isChannelName(channel)) {
         console.error(
           chalk.red(`Invalid channel name: ${channel}. Must start with # or @`)
@@ -85,6 +88,13 @@ channelsCommand
       }
 
       const config = await requireConfig();
+
+      // Resolve cross-project address
+      const { channelsDir, localChannelName } = await resolveChannelAddress(
+        channel,
+        config.channelsDir
+      );
+
       const meta: { from: string; run_id?: string; tags?: string[]; thread_id?: string } = {
         from: resolveFrom(options.from),
       };
@@ -97,8 +107,8 @@ channelsCommand
       meta.thread_id = threadId;
 
       const messageId = await publishMessage(
-        config.channelsDir,
-        channel,
+        channelsDir,
+        localChannelName,
         message,
         meta
       );
@@ -115,7 +125,7 @@ channelsCommand
 channelsCommand
   .command("read")
   .description("Read messages from a channel")
-  .argument("<channel>", "Channel name (e.g., #status)")
+  .argument("<channel>", "Channel name (e.g., #status, @project/persona)")
   .option("-l, --limit <n>", "Number of messages to show", "10")
   .option("--since <duration>", "Show messages since duration (e.g., 24h, 7d)")
   .option("--thread <threadId>", "Filter messages by thread ID")
@@ -129,6 +139,13 @@ channelsCommand
       }
 
       const config = await requireConfig();
+
+      // Resolve cross-project address
+      const { channelsDir, localChannelName } = await resolveChannelAddress(
+        channel,
+        config.channelsDir
+      );
+
       const limit = parseInt(options.limit, 10);
 
       let since: Date | undefined;
@@ -137,8 +154,8 @@ channelsCommand
       }
 
       const messages = await readChannel(
-        config.channelsDir,
-        channel,
+        channelsDir,
+        localChannelName,
         limit,
         since,
         options.thread
@@ -182,7 +199,7 @@ channelsCommand
 channelsCommand
   .command("reply")
   .description("Reply to a message thread")
-  .argument("<channel>", "Channel name")
+  .argument("<channel>", "Channel name (e.g., @persona, @project/persona)")
   .argument("<messageId>", "Message ID to reply to")
   .argument("<message>", "Reply content")
   .option("--from <from>", "Sender identifier")
@@ -196,13 +213,20 @@ channelsCommand
       }
 
       const config = await requireConfig();
+
+      // Resolve cross-project address
+      const { channelsDir, localChannelName } = await resolveChannelAddress(
+        channel,
+        config.channelsDir
+      );
+
       const meta: { from: string } = {
         from: resolveFrom(options.from),
       };
 
       const replyId = await replyToMessage(
-        config.channelsDir,
-        channel,
+        channelsDir,
+        localChannelName,
         messageId,
         message,
         meta
