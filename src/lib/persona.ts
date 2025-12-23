@@ -10,10 +10,13 @@ import type {
   CommandSpec,
   CommandModes,
   McpConfig,
+  HooksConfig,
+  HookEventConfig,
 } from "./types/persona.js";
 
 const PERSONA_FILENAME = "PERSONA.md";
 const MCP_FILENAME = "mcp.json";
+const HOOKS_FILENAME = "hooks.json";
 
 /**
  * Get the path to internal personas bundled with the package.
@@ -139,6 +142,90 @@ function mergeMcpConfigs(
       ...parent.mcpServers,
       ...child.mcpServers,
     },
+  };
+}
+
+/**
+ * Load hooks.json from a persona directory if it exists
+ */
+async function loadHooksConfig(personaPath: string): Promise<HooksConfig | null> {
+  try {
+    const filePath = join(personaPath, HOOKS_FILENAME);
+    const content = await readFile(filePath, "utf-8");
+    return JSON.parse(content) as HooksConfig;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Merge hooks configs (child hooks are appended to parent hooks for each event)
+ */
+function mergeHooksConfigs(
+  parent: HooksConfig | null,
+  child: HooksConfig | null
+): HooksConfig | null {
+  if (!parent && !child) return null;
+  if (!parent) return child;
+  if (!child) return parent;
+
+  const merged: HooksConfig = {};
+
+  // Get all hook event types from both configs
+  const allEvents = new Set([
+    ...Object.keys(parent) as (keyof HooksConfig)[],
+    ...Object.keys(child) as (keyof HooksConfig)[],
+  ]);
+
+  for (const event of allEvents) {
+    const parentHooks = parent[event] ?? [];
+    const childHooks = child[event] ?? [];
+    // Child hooks are appended (run after parent hooks)
+    merged[event] = [...parentHooks, ...childHooks] as HookEventConfig[];
+  }
+
+  return merged;
+}
+
+/**
+ * Get the path to internal hooks bundled with the package.
+ */
+export function getInternalHooksPath(): string {
+  const currentFile = fileURLToPath(import.meta.url);
+  const libDir = dirname(currentFile);
+  const packageRoot = dirname(dirname(libDir));
+  return join(packageRoot, "internal", "hooks");
+}
+
+/**
+ * Get default session hooks configuration
+ * These are the built-in hooks for session logging support
+ */
+export function getDefaultSessionHooks(): HooksConfig {
+  const hooksPath = getInternalHooksPath();
+  return {
+    Stop: [
+      {
+        hooks: [
+          {
+            type: "command",
+            command: join(hooksPath, "stop-session-reminder.sh"),
+            timeout: 10,
+          },
+        ],
+      },
+    ],
+    SessionEnd: [
+      {
+        hooks: [
+          {
+            type: "command",
+            command: join(hooksPath, "session-end-logger.sh"),
+            timeout: 30,
+          },
+        ],
+      },
+    ],
   };
 }
 
@@ -385,6 +472,14 @@ export async function resolvePersona(
     mcpConfig = mergeMcpConfigs(mcpConfig, personaMcp);
   }
 
+  // Load and merge hooks configs from inheritance chain
+  // Start with default session hooks (built-in session logging support)
+  let hooksConfig: HooksConfig | null = getDefaultSessionHooks();
+  for (const persona of extendsChain) {
+    const personaHooks = await loadHooksConfig(persona.path);
+    hooksConfig = mergeHooksConfigs(hooksConfig, personaHooks);
+  }
+
   // Check if the root persona opts out of automatic base inheritance
   const rootPersona = extendsChain[0];
   const shouldInheritBases = rootPersona.extends !== "none";
@@ -426,6 +521,7 @@ export async function resolvePersona(
     path: resolved.path,
     inheritanceChain,
     mcpConfig: mcpConfig ?? undefined,
+    hooksConfig: hooksConfig ?? undefined,
   };
 }
 

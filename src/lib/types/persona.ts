@@ -81,6 +81,40 @@ export interface McpConfig {
 }
 
 /**
+ * Hook command configuration (matches Claude Code's settings format)
+ */
+export interface HookCommand {
+  type: "command" | "prompt";
+  command?: string;
+  prompt?: string;
+  timeout?: number;
+}
+
+/**
+ * Hook configuration for a specific event
+ */
+export interface HookEventConfig {
+  matcher?: string;
+  hooks: HookCommand[];
+}
+
+/**
+ * Claude Code hooks configuration (matches Claude Code's settings format)
+ */
+export interface HooksConfig {
+  Stop?: HookEventConfig[];
+  SessionEnd?: HookEventConfig[];
+  SessionStart?: HookEventConfig[];
+  PreToolUse?: HookEventConfig[];
+  PostToolUse?: HookEventConfig[];
+  UserPromptSubmit?: HookEventConfig[];
+  Notification?: HookEventConfig[];
+  SubagentStop?: HookEventConfig[];
+  PreCompact?: HookEventConfig[];
+  PermissionRequest?: HookEventConfig[];
+}
+
+/**
  * Resolved persona with all inheritance applied and arrays merged
  */
 export interface ResolvedPersona {
@@ -100,4 +134,6 @@ export interface ResolvedPersona {
   inheritanceChain: string[];
   /** Merged MCP configuration (from mcp.json files in inheritance chain) */
   mcpConfig?: McpConfig;
+  /** Merged hooks configuration (from hooks.json files in inheritance chain) */
+  hooksConfig?: HooksConfig;
 }

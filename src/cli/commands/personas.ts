@@ -229,6 +229,21 @@ personasCommand
         }
       }
 
+      // Write hooks config to temp settings file if present (Claude-specific)
+      // Claude Code reads hooks from settings.local.json in the project .claude directory
+      let hooksConfigPath: string | undefined;
+      if (persona.hooksConfig) {
+        const hooksDir = join(tmpdir(), "dot-agents-hooks");
+        await mkdir(hooksDir, { recursive: true });
+        hooksConfigPath = join(hooksDir, `${persona.name}-${Date.now()}.json`);
+        const settingsContent = { hooks: persona.hooksConfig };
+        await writeFile(hooksConfigPath, JSON.stringify(settingsContent, null, 2));
+
+        if (options.verbose) {
+          console.log(chalk.dim(`Hooks config: ${hooksConfigPath}`));
+        }
+      }
+
       // Build the full prompt (system prompt + session context + user prompt)
       const promptParts: string[] = [];
       if (persona.prompt) {
@@ -277,6 +292,11 @@ personasCommand
           // Inject MCP config if present (Claude-specific for now)
           if (mcpConfigPath && command === "claude") {
             args = ["--mcp-config", mcpConfigPath, ...args];
+          }
+
+          // Inject hooks config if present (Claude-specific for now)
+          if (hooksConfigPath && command === "claude") {
+            args = ["--settings", hooksConfigPath, ...args];
           }
 
           if (options.verbose) {
