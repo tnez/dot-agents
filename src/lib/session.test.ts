@@ -310,4 +310,79 @@ describe("readSession", () => {
     const result = await readSession(testDir, "non-existent-id");
     assert.equal(result, null);
   });
+
+  it("reads session content (body) from session.md", async () => {
+    // Create a session directory with custom content in session.md
+    const sessionId = "2025-12-23T10-00-00";
+    const sessionPath = join(testDir, sessionId);
+    await mkdir(sessionPath, { recursive: true });
+
+    const sessionContent = `---
+id: ${sessionId}
+started: 2025-12-23T10:00:00.000Z
+runtime:
+  hostname: test
+  executionMode: interactive
+  triggerType: manual
+  workingDir: /test
+goal: "Work on feature X"
+---
+
+# Session Log
+
+Session started.
+
+## Task Progress
+
+- Investigated the issue
+- Found the root cause in src/lib/foo.ts
+- Started implementing the fix
+
+## Next Steps
+
+- Complete the implementation
+- Add tests
+`;
+    await writeFile(join(sessionPath, "session.md"), sessionContent, "utf-8");
+
+    const read = await readSession(testDir, sessionId);
+    assert.ok(read);
+    assert.equal(read.id, sessionId);
+    assert.equal(read.metadata.goal, "Work on feature X");
+    assert.ok(read.content);
+    assert.ok(read.content.includes("# Session Log"));
+    assert.ok(read.content.includes("Investigated the issue"));
+    assert.ok(read.content.includes("Found the root cause"));
+    assert.ok(read.content.includes("Complete the implementation"));
+  });
+
+  it("returns undefined content for session with empty body", async () => {
+    const created = await createSession({
+      sessionsDir: testDir,
+      runtime: {
+        hostname: "test",
+        executionMode: "headless",
+        triggerType: "manual",
+        workingDir: "/test",
+      },
+    });
+
+    // Overwrite with empty body
+    const emptyContent = `---
+id: ${created.id}
+started: 2025-12-23T10:00:00.000Z
+runtime:
+  hostname: test
+  executionMode: headless
+  triggerType: manual
+  workingDir: /test
+---
+
+`;
+    await writeFile(created.sessionFile, emptyContent, "utf-8");
+
+    const read = await readSession(testDir, created.id);
+    assert.ok(read);
+    assert.equal(read.content, undefined);
+  });
 });
