@@ -11,7 +11,6 @@ export * from "./channel.js";
 export * from "./registry.js";
 export * from "./version.js";
 export * from "./session.js";
-export * from "./checkpoint.js";
 
 // Validation
 export * from "./validation/index.js";
