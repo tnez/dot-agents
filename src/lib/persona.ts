@@ -187,47 +187,6 @@ function mergeHooksConfigs(
   return merged;
 }
 
-/**
- * Get the path to internal hooks bundled with the package.
- */
-export function getInternalHooksPath(): string {
-  const currentFile = fileURLToPath(import.meta.url);
-  const libDir = dirname(currentFile);
-  const packageRoot = dirname(dirname(libDir));
-  return join(packageRoot, "internal", "hooks");
-}
-
-/**
- * Get default session hooks configuration
- * These are the built-in hooks for session logging support
- */
-export function getDefaultSessionHooks(): HooksConfig {
-  const hooksPath = getInternalHooksPath();
-  return {
-    Stop: [
-      {
-        hooks: [
-          {
-            type: "command",
-            command: join(hooksPath, "stop-session-reminder.sh"),
-            timeout: 10,
-          },
-        ],
-      },
-    ],
-    SessionEnd: [
-      {
-        hooks: [
-          {
-            type: "command",
-            command: join(hooksPath, "session-end-logger.sh"),
-            timeout: 30,
-          },
-        ],
-      },
-    ],
-  };
-}
 
 /**
  * Load a single persona file
@@ -472,9 +431,8 @@ export async function resolvePersona(
     mcpConfig = mergeMcpConfigs(mcpConfig, personaMcp);
   }
 
-  // Load and merge hooks configs from inheritance chain
-  // Start with default session hooks (built-in session logging support)
-  let hooksConfig: HooksConfig | null = getDefaultSessionHooks();
+  // Load and merge hooks configs from inheritance chain (user-defined only)
+  let hooksConfig: HooksConfig | null = null;
   for (const persona of extendsChain) {
     const personaHooks = await loadHooksConfig(persona.path);
     hooksConfig = mergeHooksConfigs(hooksConfig, personaHooks);
