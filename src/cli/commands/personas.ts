@@ -15,6 +15,7 @@ import {
   createSession,
   readSession,
   finalizeSession,
+  spawnWithCheckpoints,
   type Session,
 } from "../../lib/index.js";
 import type { McpConfig } from "../../lib/types/persona.js";
@@ -304,22 +305,30 @@ personasCommand
           }
 
           if (interactive) {
-            // Interactive mode: pass full prompt as CLI argument, inherit stdio
-            // Show session info before starting
+            // Interactive mode: pass full prompt as CLI argument
+            // Use checkpoint wrapper for activity-based session reminders
             console.log(chalk.dim(`Session: ${session.id}`));
             console.log(chalk.dim(`Session dir: ${session.path}`));
             console.log();
 
             const execArgs = fullPrompt ? [...args, fullPrompt] : args;
 
-            const result = await execa(command, execArgs, {
-              cwd: workingDir,
-              env,
-              stdio: "inherit",
-              reject: false,
+            // Spawn with activity-based checkpointing
+            const child = spawnWithCheckpoints(command, execArgs, env, workingDir, {
+              sessionDir: session.path,
+              inactivityMinutes: 5,
+              verbose: options.verbose,
             });
 
-            exitCode = result.exitCode ?? 1;
+            // Wait for process to exit
+            exitCode = await new Promise<number>((resolve) => {
+              child.on("exit", (code) => resolve(code ?? 1));
+              child.on("error", (err) => {
+                lastError = err;
+                resolve(1);
+              });
+            });
+
             if (exitCode === 0) {
               success = true;
               break;

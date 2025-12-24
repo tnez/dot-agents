@@ -185,12 +185,18 @@ Session summaries enable:
 - Understanding past decisions
 - Handoff between agents
 
-## Exit Hooks
+## Checkpoint Reminders
 
-dot-agents includes built-in exit hooks that help ensure session state is preserved:
+During interactive sessions, dot-agents monitors for periods of inactivity (no output for 5 minutes). When detected, you'll receive a reminder message:
 
-1. **Stop Hook** - When you finish responding, the system checks if you've written a session summary. If not, you'll be prompted to write one before the session ends.
+```text
+[dot-agents] Please update $SESSION_DIR/session.md with your current progress.
+```
 
-2. **SessionEnd Hook** - When the session ends, metadata is automatically appended to your session.md file including the exit reason and timestamp.
+When you see this reminder:
 
-These hooks work automatically - just remember to write your session summary before wrapping up!
+1. Pause and write a brief progress update to session.md
+2. Include what you've accomplished and any pending work
+3. Continue with your task
+
+This ensures session context is preserved even during long-running work.
