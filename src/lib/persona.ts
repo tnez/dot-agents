@@ -229,12 +229,38 @@ export async function loadInternalBase(): Promise<Persona | null> {
 /**
  * Load the project's _project persona if it exists
  * Returns null if not found (graceful degradation)
+ * @deprecated Use loadRootPersona() instead
  */
 export async function loadProjectBase(personasRoot: string): Promise<Persona | null> {
   const projectPath = join(personasRoot, "_project");
   if (await hasPersonaFile(projectPath)) {
     return await loadPersona(projectPath);
   }
+  return null;
+}
+
+/**
+ * Load the root persona from .agents/PERSONA.md if it exists
+ * Falls back to _project for backwards compatibility
+ * Returns null if neither found
+ */
+export async function loadRootPersona(agentsRoot: string): Promise<Persona | null> {
+  // First try .agents/PERSONA.md (new pattern)
+  const rootPath = agentsRoot;
+  if (await hasPersonaFile(rootPath)) {
+    const persona = await loadPersona(rootPath);
+    // Override name to 'root' for consistency
+    return { ...persona, name: "root" };
+  }
+
+  // Fall back to .agents/personas/_project (legacy pattern)
+  const personasRoot = join(agentsRoot, "personas");
+  const projectPath = join(personasRoot, "_project");
+  if (await hasPersonaFile(projectPath)) {
+    const persona = await loadPersona(projectPath);
+    return persona;
+  }
+
   return null;
 }
 
@@ -444,14 +470,16 @@ export async function resolvePersona(
 
   let finalPrompt = resolved.prompt;
 
-  // Auto-inherit _project (project conventions) - prepended after _base
+  // Auto-inherit root persona (project conventions) - prepended after _base
+  // Supports both new pattern (.agents/PERSONA.md) and legacy (_project)
   if (shouldInheritBases) {
-    const project = await loadProjectBase(personasRoot);
-    if (project?.prompt) {
-      // Prepend project prompt with separator
-      finalPrompt = project.prompt + (finalPrompt ? "\n\n---\n\n" + finalPrompt : "");
-      // Add project to the start of inheritance chain
-      inheritanceChain.unshift(project.path);
+    const agentsRoot = dirname(personasRoot);
+    const rootPersonaConfig = await loadRootPersona(agentsRoot);
+    if (rootPersonaConfig?.prompt) {
+      // Prepend root prompt with separator
+      finalPrompt = rootPersonaConfig.prompt + (finalPrompt ? "\n\n---\n\n" + finalPrompt : "");
+      // Add root to the start of inheritance chain
+      inheritanceChain.unshift(rootPersonaConfig.path);
     }
   }
 

@@ -32,19 +32,49 @@ personasCommand
   .action(async (options) => {
     try {
       const config = await requireConfig();
-      const personaPaths = await listPersonas(config.personasDir);
 
-      if (personaPaths.length === 0) {
+      // Check for root persona (.agents/PERSONA.md)
+      const { loadRootPersona } = await import("../../lib/persona.js");
+      const rootPersona = await loadRootPersona(config.agentsDir);
+
+      const personaPaths = await listPersonas(config.personasDir);
+      const totalCount = personaPaths.length + (rootPersona ? 1 : 0);
+
+      if (totalCount === 0) {
         console.log(chalk.yellow("No personas found"));
         return;
       }
 
-      console.log(chalk.blue(`Personas (${personaPaths.length}):\n`));
+      console.log(chalk.blue(`Personas (${totalCount}):\n`));
+
+      // Show root persona first if it exists
+      if (rootPersona) {
+        console.log(chalk.green(`  root (default)`));
+        if (rootPersona.description) {
+          console.log(chalk.dim(`    ${rootPersona.description}`));
+        }
+        if (options.verbose) {
+          const cmd = Array.isArray(rootPersona.cmd)
+            ? rootPersona.cmd[0]
+            : typeof rootPersona.cmd === "object" && rootPersona.cmd !== null
+              ? rootPersona.cmd.interactive?.[0] || rootPersona.cmd.headless?.[0]
+              : rootPersona.cmd;
+          if (cmd) {
+            console.log(chalk.dim(`    Command: ${cmd}`));
+          }
+        }
+        console.log();
+      }
 
       for (const personaPath of personaPaths) {
         try {
           const persona = await loadPersona(personaPath);
           const relPath = relative(config.personasDir, personaPath);
+
+          // Skip _project if root persona came from there (avoid duplicate)
+          if (relPath === "_project" && rootPersona?.path === personaPath) {
+            continue;
+          }
 
           console.log(chalk.white(`  ${relPath}`));
           if (persona.description) {
@@ -89,8 +119,8 @@ personasCommand
 
 personasCommand
   .command("run")
-  .description("Run a persona directly")
-  .argument("<name>", "Persona name/path (e.g., developer, claude/autonomous)")
+  .description("Run a persona directly (defaults to root persona if no name given)")
+  .argument("[name]", "Persona name/path (e.g., developer, claude/autonomous). Defaults to 'root'")
   .option("-p, --prompt <text>", "Prompt to pass to the persona")
   .option("--interactive", "Run in interactive mode (default)")
   .option("--headless", "Run in headless/print mode")
@@ -105,9 +135,15 @@ personasCommand
       const config = await requireConfig();
 
       // Resolve persona path
-      const personaPath = name.startsWith("/")
-        ? name
-        : `${config.personasDir}/${name}`;
+      let personaPath: string;
+      if (!name) {
+        // No name provided - use root persona (.agents/PERSONA.md)
+        personaPath = config.agentsDir;
+      } else if (name.startsWith("/")) {
+        personaPath = name;
+      } else {
+        personaPath = `${config.personasDir}/${name}`;
+      }
 
       if (options.verbose) {
         console.log(chalk.dim(`Resolving persona: ${personaPath}`));
@@ -388,7 +424,10 @@ personasCommand
       if (interactive) {
         console.log();
         console.log(chalk.dim(`Session ended: ${session.id}`));
-        console.log(chalk.dim(`To resume: npx dot-agents personas run ${name} --session-id ${session.id}`));
+        const resumeCmd = name
+          ? `npx dot-agents personas run ${name} --session-id ${session.id}`
+          : `npx dot-agents personas run --session-id ${session.id}`;
+        console.log(chalk.dim(`To resume: ${resumeCmd}`));
       }
     } catch (error) {
       console.error(chalk.red(`Error: ${(error as Error).message}`));
