@@ -21,7 +21,6 @@ interface ResolvedCommands {
 interface Persona {
   name: string;
   description?: string;
-  extends?: string;
   cmd?: string | string[] | CommandModes;
   path: string;
   parent?: string;

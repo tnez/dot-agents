@@ -383,50 +383,14 @@ export function mergePersonas(parent: Persona, child: Persona): Persona {
 }
 
 /**
- * Build the explicit extends chain by following persona references
- * Returns personas from root to leaf (e.g., [odin-base, executive-assistant])
+ * Check if a directory contains a PERSONA.md file (exported for use in resolvePersona)
  */
-async function buildExtendsChain(
-  persona: Persona,
-  personasRoot: string,
-  visited: Set<string> = new Set()
-): Promise<Persona[]> {
-  // Detect circular inheritance
-  if (visited.has(persona.path)) {
-    throw new Error(`Circular inheritance detected: ${persona.path}`);
-  }
-  visited.add(persona.path);
-
-  const extendsValue = persona.extends;
-
-  // No extends or extends: "none" - this is the root
-  if (!extendsValue || extendsValue === "none") {
-    return [persona];
-  }
-
-  // extends: "_base" or "_project" means inherit from auto-inherited bases (handled later)
-  if (extendsValue === "_base" || extendsValue === "_project") {
-    return [persona];
-  }
-
-  // extends: "<persona-name>" - find and load the parent persona
-  const parentPath = `${personasRoot}/${extendsValue}`;
-  if (!(await hasPersonaFile(parentPath))) {
-    throw new Error(
-      `Parent persona "${extendsValue}" not found at ${parentPath} (extended by ${persona.name})`
-    );
-  }
-
-  const parentPersona = await loadPersona(parentPath);
-  const parentChain = await buildExtendsChain(parentPersona, personasRoot, visited);
-
-  return [...parentChain, persona];
-}
+export { hasPersonaFile };
 
 /**
  * Resolve a persona with full inheritance chain
- * Supports explicit extends field for multi-level inheritance
- * Includes implicit inheritance from internal _base persona unless extends: "none"
+ * Uses directory-based inheritance: child inherits from parent directories
+ * Includes implicit inheritance from internal _base persona and root persona
  */
 export async function resolvePersona(
   personaPath: string,
@@ -436,62 +400,67 @@ export async function resolvePersona(
   if (!(await hasPersonaFile(personaPath))) {
     throw new Error(`No persona found at path: ${personaPath}`);
   }
-  const targetPersona = await loadPersona(personaPath);
 
-  // Build the extends chain (follows explicit extends references)
-  const extendsChain = await buildExtendsChain(targetPersona, personasRoot);
+  // Build directory-based inheritance chain (parent directories first)
+  const directoryChain = buildInheritanceChain(personaPath, personasRoot);
+
+  // Load personas from each directory in the chain (if they have PERSONA.md)
+  const personaChain: Persona[] = [];
+  for (const dirPath of directoryChain) {
+    if (await hasPersonaFile(dirPath)) {
+      const persona = await loadPersona(dirPath);
+      personaChain.push(persona);
+    }
+  }
+
+  // Must have at least the target persona
+  if (personaChain.length === 0) {
+    throw new Error(`No persona found at path: ${personaPath}`);
+  }
 
   // Merge personas from root to leaf
-  let resolved: Persona = extendsChain[0];
-  for (let i = 1; i < extendsChain.length; i++) {
-    resolved = mergePersonas(resolved, extendsChain[i]);
+  let resolved: Persona = personaChain[0];
+  for (let i = 1; i < personaChain.length; i++) {
+    resolved = mergePersonas(resolved, personaChain[i]);
   }
 
   // Build inheritance chain paths
-  const inheritanceChain = extendsChain.map((p) => p.path);
+  const inheritanceChain = personaChain.map((p) => p.path);
 
   // Load and merge MCP configs from inheritance chain
   let mcpConfig: McpConfig | null = null;
-  for (const persona of extendsChain) {
+  for (const persona of personaChain) {
     const personaMcp = await loadMcpConfig(persona.path);
     mcpConfig = mergeMcpConfigs(mcpConfig, personaMcp);
   }
 
-  // Load and merge hooks configs from inheritance chain (user-defined only)
+  // Load and merge hooks configs from inheritance chain
   let hooksConfig: HooksConfig | null = null;
-  for (const persona of extendsChain) {
+  for (const persona of personaChain) {
     const personaHooks = await loadHooksConfig(persona.path);
     hooksConfig = mergeHooksConfigs(hooksConfig, personaHooks);
   }
-
-  // Check if the root persona opts out of automatic base inheritance
-  const rootPersona = extendsChain[0];
-  const shouldInheritBases = rootPersona.extends !== "none";
 
   let finalPrompt = resolved.prompt;
 
   // Auto-inherit root persona (project conventions) - prepended after _base
   // Supports both new pattern (.agents/PERSONA.md) and legacy (_project)
-  if (shouldInheritBases) {
-    const agentsRoot = dirname(personasRoot);
-    const rootPersonaConfig = await loadRootPersona(agentsRoot);
-    if (rootPersonaConfig?.prompt) {
-      // Prepend root prompt with separator
-      finalPrompt = rootPersonaConfig.prompt + (finalPrompt ? "\n\n---\n\n" + finalPrompt : "");
-      // Add root to the start of inheritance chain
-      inheritanceChain.unshift(rootPersonaConfig.path);
-    }
+  const agentsRoot = dirname(personasRoot);
+  const rootPersonaConfig = await loadRootPersona(agentsRoot);
+  if (rootPersonaConfig?.prompt) {
+    // Prepend root prompt with separator
+    finalPrompt = rootPersonaConfig.prompt + (finalPrompt ? "\n\n---\n\n" + finalPrompt : "");
+    // Add root to the start of inheritance chain
+    inheritanceChain.unshift(rootPersonaConfig.path);
   }
 
   // Auto-inherit _base (dot-agents system knowledge) - prepended first
-  if (shouldInheritBases) {
-    const base = await loadInternalBase();
-    if (base?.prompt) {
-      // Prepend base prompt with separator
-      finalPrompt = base.prompt + (finalPrompt ? "\n\n---\n\n" + finalPrompt : "");
-      // Add base to the start of inheritance chain
-      inheritanceChain.unshift(base.path);
-    }
+  const base = await loadInternalBase();
+  if (base?.prompt) {
+    // Prepend base prompt with separator
+    finalPrompt = base.prompt + (finalPrompt ? "\n\n---\n\n" + finalPrompt : "");
+    // Add base to the start of inheritance chain
+    inheritanceChain.unshift(base.path);
   }
 
   // Resolve commands to normalized structure

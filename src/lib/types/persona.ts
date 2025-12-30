@@ -31,13 +31,6 @@ export interface PersonaFrontmatter {
   env?: Record<string, string>;
   /** Enabled skills - glob patterns, use ! for negation */
   skills?: string[];
-  /**
-   * Control inheritance chain
-   * - undefined: implicit inheritance from _base (default)
-   * - "none": opt out of all inheritance
-   * - string: name of parent persona to extend (e.g., "odin-base")
-   */
-  extends?: string;
 }
 
 /**
