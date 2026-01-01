@@ -98,18 +98,13 @@ npx dot-agents personas run <name> [options]
 
 ### Inheritance
 
-Personas can inherit from other personas via `inherits:` in frontmatter:
+Personas inherit automatically via directory structure:
 
-```yaml
----
-name: developer
-inherits:
-  - _base
-  - _project-base
----
-```
+1. **Root persona** (`.agents/PERSONA.md`) provides project-wide context
+2. **Child personas** in `.agents/personas/` inherit from root implicitly
+3. **All personas** inherit from the built-in `_base` persona (this document)
 
-Child personas receive all skills, MCP servers, and context from parents.
+No explicit `inherits:` field needed - inheritance is convention-based.
 
 ## Workflows
 
