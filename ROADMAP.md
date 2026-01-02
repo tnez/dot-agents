@@ -189,18 +189,101 @@ Full web interface for channels with attachment support.
 
 ---
 
-## Session/Channel Documentation <!-- target: next-minor -->
+## Sessions-as-Threads <!-- target: 0.6.0 -->
 
-Clarify the unified mental model in README/docs.
+Eliminate sessions as a separate primitive. Threads in `#sessions` become the canonical session representation.
 
-**Core concepts:**
+**The Simplification:**
 
-- Sessions = execution units
-- Channels = messaging between sessions
-- `personas run` = create session, run in foreground
-- `channels publish @persona` = create message, daemon handles async
+```text
+Before: .agents/sessions/ + .agents/channels/ (two systems)
+After:  .agents/channels/#sessions (one system, threads = sessions)
+```
 
-Document in README or dedicated docs section.
+**Why this matters:**
+
+- One primitive instead of two
+- Cross-machine coordination via file sync (channels already sync)
+- Observable session history via `channels read #sessions`
+- Delegates post updates to parent session thread
+- Natural audit trail for both interactive and headless execution
+
+### How It Works
+
+**Session lifecycle:**
+
+1. `personas run dottie` → publishes to `#sessions`, gets thread ID
+2. Thread ID = session identity (replaces session directory)
+3. Updates posted to thread during execution (guided by persona)
+4. Completion message posted automatically on exit
+
+**Thread as session log:**
+
+```text
+┌─────────────────────────────────────────────────────────────┐
+│ #sessions thread: 2025-01-02T15-30-00.000Z                  │
+├─────────────────────────────────────────────────────────────┤
+│ [15:30] system: Session started                             │
+│         persona: dottie | mode: interactive | host: Odin    │
+│ [15:32] dottie: User asked for dot-agents release           │
+│ [15:32] dottie: Delegating to @dot-agents                   │
+│ [15:35] dot-agents: Starting release workflow...            │
+│ [15:40] dot-agents: Release complete, published 0.6.0       │
+│ [15:41] dottie: Confirmed with user                         │
+│ [15:45] system: Session ended (duration: 15m, exit: 0)      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+**Working memory / scratch:**
+
+- Option A: `channels/#sessions/<thread-id>/scratch/` directory
+- Option B: Message attachments (future, with Channels Web UI)
+- For now: scratch directory alongside thread messages
+
+### Implementation
+
+**Remove:**
+
+- `.agents/sessions/` directory structure
+- `createSession()`, `finalizeSession()` complexity
+- `--session-id` flag for explicit resumption
+- `SESSION_DIR` env var (replaced by thread-based scratch)
+
+**Keep/Enhance:**
+
+- `SESSION_ID` → thread ID in `#sessions`
+- `SESSION_THREAD_ID` → same as SESSION_ID (alias for clarity)
+
+**Add:**
+
+- Auto-publish to `#sessions` on `personas run`
+- Auto-publish completion on exit
+- `--thread` flag for posting to specific thread (delegation callback)
+- Soft resumption: "look for recent thread from #sessions" vs hard `--session-id`
+
+**Persona guidance (\_base):**
+
+- Post major updates to session thread
+- Check thread for delegate updates when waiting
+- Pattern: `npx dot-agents channels publish "#sessions" "msg" --thread $SESSION_ID`
+
+**Future skills:**
+
+- `session-update` - simplified wrapper for posting to current thread
+- `session-watch` - tail a session's thread for updates
+
+### Migration
+
+- Existing `.agents/sessions/` directories continue to work (read-only)
+- New sessions go to `#sessions` channel
+- Eventually deprecate sessions/ directory
+
+### Enables
+
+- Cross-project delegation with natural callbacks
+- Multi-machine coordination (channels sync via iCloud/Dropbox/git)
+- Session history queryable via channels CLI
+- Foundation for Channels Web UI session viewer
 
 ---
 
@@ -292,6 +375,64 @@ Improve CLI feedback when publishing to persona DMs.
 **Potential:** Show confirmation, message ID, or async status indicator.
 
 **Status:** Current behavior is acceptable for MVP.
+
+---
+
+## Cross-Project Delegation Callbacks <!-- target: next-minor -->
+
+Support cross-project channel syntax for delegation callbacks.
+
+**Problem:** When `@dot-agents` does work delegated by `@docs/dottie`, it needs to post status updates back to the caller's session thread. Current docs only show local `#sessions` syntax.
+
+**Required syntax:**
+
+```bash
+# Delegate posts back to caller's session thread
+npx dot-agents channels publish "@docs#sessions" "Status update..." --thread $SESSION_ID --from "@dot-agents"
+```
+
+**Components:**
+
+1. **Cross-project channel syntax** - `@project#channel` to publish to another project's channel
+2. **`--from` flag** - Identify sender (ideally auto-populated from current project/persona)
+3. **Caller passes session context** - Delegation prompt includes `$SESSION_ID` and project identifier
+
+**Implementation:**
+
+- Extend channel address parsing to support `@project#channel`
+- Auto-populate `--from` based on registered project identity
+- Document pattern in \_base persona for cross-project delegations
+- Add end-to-end spec: delegation → work → callback → caller reads update
+
+**Discovered:** 2026-01-02 during cross-project delegation flow analysis.
+
+---
+
+## `projects list` Daemon Status <!-- target: next-minor -->
+
+Show whether registered projects have a running daemon.
+
+**Problem:** When delegating to `@project`, it's unclear whether the project has an active daemon to process the message or if manual intervention is needed.
+
+**Proposed:**
+
+```bash
+npx dot-agents projects list
+
+# Output:
+# Name         Path                          Daemon
+# docs         ~/Documents                   ● running (pid 12345)
+# scoutos      ~/Code/scoutos/scoutos        ○ stopped
+# dot-agents   ~/Code/tnez/dot-agents        ○ stopped
+```
+
+**Implementation:**
+
+- Check for daemon PID file or running process per project
+- Add status column to `projects list` output
+- Consider `--json` flag for programmatic access
+
+**Discovered:** 2026-01-02 during cross-project delegation.
 
 ---
 

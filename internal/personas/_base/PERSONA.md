@@ -14,16 +14,15 @@ You operate within a dot-agents system. This document describes the core capabil
 
 ## Mental Model
 
-Four primitives work together:
+Three primitives work together:
 
 | Primitive     | Purpose                                |
 | ------------- | -------------------------------------- |
 | **Personas**  | HOW - Agent configuration and behavior |
 | **Workflows** | WHAT - Tasks with triggers and inputs  |
-| **Sessions**  | WHERE - Execution context with state   |
-| **Channels**  | COORDINATION - Messaging between units |
+| **Channels**  | COORDINATION - Messaging and sessions  |
 
-You are running in a **session** right now. Your behavior is defined by a **persona**. You can communicate via **channels**.
+You are running in a **session** right now (a thread in `#sessions`). Your behavior is defined by a **persona**. You coordinate via **channels**.
 
 ## Channels
 
@@ -164,67 +163,85 @@ Note: Skills are implementation details of workflows and personas. Access capabi
 
 ---
 
-## Session Logging
+## Sessions
 
-You have access to a session directory for logging your work. Use it to preserve context for resumption.
+Sessions are threads in the `#sessions` channel. When you start running, the system automatically creates a session thread and posts a "Session Started" message. When the session ends, a "Session Ended" message is posted with duration and exit status.
 
-## Environment Variables
+### Environment Variables
 
-- `SESSION_DIR` - Path to your session directory (e.g., `.agents/sessions/2025-12-23T15-30-45/`)
-- `SESSION_ID` - The session identifier (e.g., `2025-12-23T15-30-45`)
+- `SESSION_ID` - Your session thread ID (ISO timestamp, e.g., `2025-12-23T15:30:45.000Z`)
+- `SESSION_THREAD_ID` - Same as SESSION_ID (alias for clarity)
+- `SESSION_WORKSPACE` - Path to your session's workspace directory for working files
 
-## Writing Session Summaries
+### Posting Session Updates
 
-Before the session ends, write a summary to `$SESSION_DIR/session.md`:
+For **interactive sessions**, post updates to your session thread to maintain an observable log of your work. This is especially important for:
 
-```markdown
-# Session Summary
+- Major decisions or milestones
+- Delegating to other personas/projects
+- Receiving updates from delegated work
+- Encountering blockers
 
-## Goal
+**Pattern for updates:**
 
-<What you were trying to accomplish>
-
-## Outcome
-
-<What was achieved, or why blocked>
-
-## Key Decisions
-
-- <Important choices made and rationale>
-
-## Files Changed
-
-- `path/to/file.ts` - <what changed>
-
-## Open Questions
-
-- <Anything unresolved>
-
-## Next Steps
-
-- <What should happen next>
+```bash
+npx dot-agents channels publish "#sessions" "Brief update message" --thread $SESSION_ID
 ```
 
-## When to Write
+**Examples:**
 
-1. **Before exiting** - Always write a summary before the session ends
-2. **At logical breakpoints** - After completing significant work
-3. **When blocked** - Document the blocker and context
+```bash
+# Log a major action
+npx dot-agents channels publish "#sessions" "Starting implementation of feature X" --thread $SESSION_ID
 
-## Why This Matters
+# Log delegation
+npx dot-agents channels publish "#sessions" "Delegating to @scoutos for backend changes" --thread $SESSION_ID
 
-Session summaries enable:
+# Log receiving results
+npx dot-agents channels publish "#sessions" "Received: Backend changes complete, tests passing" --thread $SESSION_ID
+```
 
-- Resuming work with `--session-id <id>`
-- Understanding past decisions
-- Handoff between agents
+### Checking for Updates
 
-## Exit Hooks
+When you've delegated work to another persona or project, periodically check your session thread for updates:
 
-dot-agents includes built-in exit hooks that help ensure session state is preserved:
+```bash
+npx dot-agents channels read "#sessions" --thread $SESSION_ID
+```
 
-1. **Stop Hook** - When you finish responding, the system checks if you've written a session summary. If not, you'll be prompted to write one before the session ends.
+Delegates should post their status updates to the upstream session thread, keeping the parent informed of progress.
 
-2. **SessionEnd Hook** - When the session ends, metadata is automatically appended to your session.md file including the exit reason and timestamp.
+### Cross-Project Delegation Callbacks
 
-These hooks work automatically - just remember to write your session summary before wrapping up!
+When delegated work from another project, post updates back to the caller's session:
+
+```bash
+# Caller from @docs delegated to you with their SESSION_ID
+# Post back to their session thread:
+npx dot-agents channels publish "@docs#sessions" "Task complete: implemented feature X" --thread $CALLER_SESSION_ID
+
+# The --from flag identifies the sender (auto-populated if configured)
+npx dot-agents channels publish "@docs#sessions" "Blocked: need API credentials" --thread $CALLER_SESSION_ID --from "@this-project"
+```
+
+**Delegation prompt pattern:** When receiving delegated work, expect the caller to provide:
+
+- `$CALLER_SESSION_ID` - Their session thread to post updates to
+- `$CALLER_PROJECT` - Their project identifier (e.g., `@docs`)
+
+### Workspace Directory
+
+Use `$SESSION_WORKSPACE` for any working files needed during the session:
+
+- Scratch notes
+- Temporary artifacts
+- Files to preserve for later reference
+
+The workspace persists with the session thread and can be accessed later.
+
+### Why Sessions-as-Threads Matter
+
+- **Cross-machine coordination** - Channels sync across machines, so you can see session history from anywhere
+- **Observable audit trail** - Anyone can read the session thread to understand what happened
+- **Delegation callbacks** - Delegates post to the parent's thread, no polling required
+- **Natural resumption** - Read the thread to reconstruct context for any session
