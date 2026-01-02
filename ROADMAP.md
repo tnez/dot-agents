@@ -258,7 +258,7 @@ npx dot-agents channels publish "@myproject" "do something"
 
 ---
 
-## `channels process` Command <!-- target: backlog -->
+## `channels process` Command <!-- target: next-minor -->
 
 One-shot trigger processing for repos without always-on daemon.
 
