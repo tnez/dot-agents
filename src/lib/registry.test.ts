@@ -193,3 +193,176 @@ describe("detectNameCollisions", () => {
     );
   });
 });
+
+/**
+ * Inline the resolveChannelAddress logic for testing
+ * This mirrors registry.ts:166-207
+ */
+interface ResolvedChannelAddress {
+  channelsDir: string;
+  localChannelName: string;
+  isProjectEntryPoint?: boolean;
+  projectName?: string;
+}
+
+function resolveChannelAddressSync(
+  address: string,
+  localChannelsDir: string,
+  projectRegistry: Record<string, string>
+): ResolvedChannelAddress {
+  const parsed = parseChannelAddress(address);
+
+  if (parsed.project === null) {
+    // Check if @name matches a registered project (unified resolution)
+    if (parsed.type === "@") {
+      const projectPath = projectRegistry[parsed.name];
+      if (projectPath) {
+        // Route to project's entry point (@root)
+        return {
+          channelsDir: `${projectPath}/channels`,
+          localChannelName: "@root",
+          isProjectEntryPoint: true,
+          projectName: parsed.name,
+        };
+      }
+    }
+
+    // Local channel (no project match or public channel)
+    return {
+      channelsDir: localChannelsDir,
+      localChannelName: address,
+    };
+  }
+
+  // Cross-project channel with explicit project/name format
+  const projectPath = projectRegistry[parsed.project];
+  if (!projectPath) {
+    throw new Error(
+      `Unknown project: ${parsed.project}. Register it with: npx dot-agents projects add ${parsed.project} /path/to/project`
+    );
+  }
+
+  return {
+    channelsDir: `${projectPath}/channels`,
+    localChannelName: `${parsed.type}${parsed.name}`,
+    projectName: parsed.project,
+  };
+}
+
+describe("resolveChannelAddress cross-project routing", () => {
+  const localChannelsDir = "/current-project/.agents/channels";
+  const projectRegistry = {
+    documents: "/home/user/documents/.agents",
+    scoutos: "/home/user/scoutos/.agents",
+  };
+
+  describe("@project routes to @root", () => {
+    it("@documents routes to documents project's @root channel", () => {
+      const result = resolveChannelAddressSync(
+        "@documents",
+        localChannelsDir,
+        projectRegistry
+      );
+
+      assert.strictEqual(result.channelsDir, "/home/user/documents/.agents/channels");
+      assert.strictEqual(result.localChannelName, "@root");
+      assert.strictEqual(result.isProjectEntryPoint, true);
+      assert.strictEqual(result.projectName, "documents");
+    });
+
+    it("@scoutos routes to scoutos project's @root channel", () => {
+      const result = resolveChannelAddressSync(
+        "@scoutos",
+        localChannelsDir,
+        projectRegistry
+      );
+
+      assert.strictEqual(result.channelsDir, "/home/user/scoutos/.agents/channels");
+      assert.strictEqual(result.localChannelName, "@root");
+      assert.strictEqual(result.isProjectEntryPoint, true);
+      assert.strictEqual(result.projectName, "scoutos");
+    });
+  });
+
+  describe("@project/persona routes to specific persona", () => {
+    it("@documents/dottie routes to documents project's @dottie channel", () => {
+      const result = resolveChannelAddressSync(
+        "@documents/dottie",
+        localChannelsDir,
+        projectRegistry
+      );
+
+      assert.strictEqual(result.channelsDir, "/home/user/documents/.agents/channels");
+      assert.strictEqual(result.localChannelName, "@dottie");
+      assert.strictEqual(result.projectName, "documents");
+      // Not marked as entry point since it's a specific persona
+      assert.strictEqual(result.isProjectEntryPoint, undefined);
+    });
+  });
+
+  describe("local personas without project match", () => {
+    it("@developer stays local when no project named 'developer'", () => {
+      const result = resolveChannelAddressSync(
+        "@developer",
+        localChannelsDir,
+        projectRegistry
+      );
+
+      assert.strictEqual(result.channelsDir, localChannelsDir);
+      assert.strictEqual(result.localChannelName, "@developer");
+      assert.strictEqual(result.isProjectEntryPoint, undefined);
+      assert.strictEqual(result.projectName, undefined);
+    });
+
+    it("@reviewer stays local when no project named 'reviewer'", () => {
+      const result = resolveChannelAddressSync(
+        "@reviewer",
+        localChannelsDir,
+        projectRegistry
+      );
+
+      assert.strictEqual(result.channelsDir, localChannelsDir);
+      assert.strictEqual(result.localChannelName, "@reviewer");
+    });
+  });
+
+  describe("public channels", () => {
+    it("#status stays local (no project routing for public channels)", () => {
+      const result = resolveChannelAddressSync(
+        "#status",
+        localChannelsDir,
+        projectRegistry
+      );
+
+      assert.strictEqual(result.channelsDir, localChannelsDir);
+      assert.strictEqual(result.localChannelName, "#status");
+    });
+
+    it("#documents stays local (public channels don't match project names)", () => {
+      // Even though 'documents' is a project name, #documents is a public channel
+      // and doesn't get routed to the project
+      const result = resolveChannelAddressSync(
+        "#documents",
+        localChannelsDir,
+        projectRegistry
+      );
+
+      assert.strictEqual(result.channelsDir, localChannelsDir);
+      assert.strictEqual(result.localChannelName, "#documents");
+    });
+  });
+
+  describe("error handling", () => {
+    it("throws for unknown project in explicit format", () => {
+      assert.throws(
+        () =>
+          resolveChannelAddressSync(
+            "@unknown-project/persona",
+            localChannelsDir,
+            projectRegistry
+          ),
+        /Unknown project: unknown-project/
+      );
+    });
+  });
+});
