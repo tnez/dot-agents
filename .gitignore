@@ -55,5 +55,9 @@ sessions/**/*.log
 sessions/**/*.json
 !sessions/README.md
 
-# Local agent sessions
+# Local agent runtime data
 .agents/sessions/
+
+# Channel messages (but keep metadata)
+.agents/channels/**/*/
+!.agents/channels/**/_metadata.yaml
