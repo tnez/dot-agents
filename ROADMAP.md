@@ -182,3 +182,25 @@ Build on existing cross-project routing to improve interactive session support.
 **Challenge:** What does reading look like for interactive sessions?
 
 **Potential solution:** Bake into \_base persona prompt that agents should check their DM channel periodically. Works for both headless and interactive sessions.
+
+---
+
+## Structured Response Routing <!-- target: backlog -->
+
+Add `upstream` field for structured response routing back to callers.
+
+**Use case:** Orchestration scenarios where a caller needs to receive structured responses from delegated work.
+
+**Status:** Nice-to-have, not blocking current functionality.
+
+---
+
+## CLI Feedback for Channel Publish <!-- target: backlog -->
+
+Improve CLI feedback when publishing to persona DMs.
+
+**Current:** Fire-and-forget with minimal feedback.
+
+**Potential:** Show confirmation, message ID, or async status indicator.
+
+**Status:** Current behavior is acceptable for MVP.
