@@ -136,8 +136,8 @@ personasCommand
 
       // Resolve persona path
       let personaPath: string;
-      if (!name) {
-        // No name provided - use root persona (.agents/PERSONA.md)
+      if (!name || name === "root") {
+        // No name or "root" - use root persona (.agents/PERSONA.md)
         personaPath = config.agentsDir;
       } else if (name.startsWith("/")) {
         personaPath = name;

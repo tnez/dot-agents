@@ -47,11 +47,12 @@ export async function invokePersona(
     timeoutMs = 10 * 60 * 1000,
   } = options;
 
-  // Resolve persona
-  const persona = await resolvePersona(
-    join(config.personasDir, personaName),
-    config.personasDir
-  );
+  // Resolve persona path - handle root persona specially
+  const personaPath = personaName === "root"
+    ? config.agentsDir
+    : join(config.personasDir, personaName);
+
+  const persona = await resolvePersona(personaPath, config.personasDir);
 
   // Create session for DM invocation
   const session = await createSession({

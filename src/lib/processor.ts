@@ -7,6 +7,7 @@ import {
   listPersonas,
   invokePersona,
 } from "./index.js";
+import { hasPersonaFile } from "./persona.js";
 
 /**
  * Result of processing a single message
@@ -94,6 +95,12 @@ async function personaExists(
   channelName: string
 ): Promise<boolean> {
   const personaName = channelName.slice(1); // Remove @ prefix
+
+  // Check for root persona (.agents/PERSONA.md)
+  if (personaName === "root") {
+    return await hasPersonaFile(config.agentsDir);
+  }
+
   const personaPaths = await listPersonas(config.personasDir);
 
   for (const path of personaPaths) {
