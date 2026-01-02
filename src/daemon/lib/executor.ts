@@ -14,6 +14,7 @@ import {
   getInputDefaults,
   createSession,
   finalizeSession,
+  invokePersona as invokePersonaLib,
   type Session,
 } from "../../lib/index.js";
 
@@ -301,166 +302,9 @@ export class Executor {
     message: string,
     options: InvokeOptions = {}
   ): Promise<ExecutionResult> {
-    const startedAt = new Date();
-
-    // Resolve persona
-    const persona = await resolvePersona(
-      join(this.config.personasDir, personaName),
-      this.config.personasDir
-    );
-
-    // Create session for DM invocation
-    const session = await createSession({
-      sessionsDir: this.config.sessionsDir,
-      runtime: {
-        hostname: hostname(),
-        executionMode: "headless",
-        triggerType: "dm",
-        workingDir: this.config.agentsDir,
-      },
-      goal: `DM invocation: ${personaName}`,
-      persona: {
-        name: persona.name,
-        inheritanceChain: persona.inheritanceChain,
-      },
+    return invokePersonaLib(this.config, personaName, message, {
+      source: options.source ?? "dm",
+      context: options.context,
     });
-
-    const context = createExecutionContext({
-      PERSONA_NAME: persona.name,
-      PERSONA_DIR: persona.path,
-      AGENTS_DIR: this.config.agentsDir,
-      SESSION_DIR: session.path,
-      INVOCATION_SOURCE: options.source ?? "dm",
-      ...options.context,
-    });
-
-    // Merge environment
-    const env: Record<string, string> = {
-      ...process.env,
-      ...persona.env,
-      DOT_AGENTS_PERSONA: persona.name,
-      DOT_AGENTS_INVOCATION: "dm",
-    } as Record<string, string>;
-
-    for (const [key, value] of Object.entries(env)) {
-      if (value) {
-        env[key] = expandVariables(
-          value,
-          context as Record<string, string>,
-          env
-        );
-      }
-    }
-
-    // Build prompt: persona prompt + message
-    const parts: string[] = [];
-    if (persona.prompt) {
-      const expandedPrompt = processTemplate(persona.prompt, context, persona.env);
-      parts.push(expandedPrompt);
-      parts.push("\n---\n");
-    }
-    parts.push(`You received a direct message:\n\n${message}`);
-    const prompt = parts.join("\n");
-
-    // Timeout (default 10 minutes for DM invocations)
-    const timeoutMs = 10 * 60 * 1000;
-
-    // Use headless commands for DM-triggered invocations
-    const cmds = persona.commands.headless;
-
-    if (!cmds) {
-      const endedAt = new Date();
-      const result: ExecutionResult = {
-        success: false,
-        exitCode: 1,
-        stdout: "",
-        stderr: `Persona '${persona.name}' does not support headless mode`,
-        duration: endedAt.getTime() - startedAt.getTime(),
-        runId: context.RUN_ID,
-        startedAt,
-        endedAt,
-        error: "Persona does not support headless mode",
-      };
-      // Finalize session for error
-      await finalizeSession(session, {
-        success: result.success,
-        exitCode: result.exitCode,
-        duration: result.duration,
-        error: result.error,
-        stderr: result.stderr,
-      });
-      return result;
-    }
-
-    // Try each command
-    let lastError: Error | null = null;
-    let result: ExecutionResult | null = null;
-
-    for (const cmd of cmds) {
-      try {
-        const expandedCmd = expandVariables(
-          cmd,
-          context as Record<string, string>,
-          env
-        );
-        const [command, ...args] = expandedCmd.split(/\s+/);
-
-        const execResult = await execa(command, args, {
-          input: prompt,
-          cwd: this.config.agentsDir,
-          env,
-          timeout: timeoutMs,
-          reject: false,
-        });
-
-        const endedAt = new Date();
-
-        result = {
-          success: execResult.exitCode === 0,
-          exitCode: execResult.exitCode ?? 1,
-          stdout: execResult.stdout,
-          stderr: execResult.stderr,
-          duration: endedAt.getTime() - startedAt.getTime(),
-          runId: context.RUN_ID,
-          startedAt,
-          endedAt,
-        };
-
-        if (result.success) break;
-
-        lastError = new Error(
-          `Command failed with exit code ${result.exitCode}: ${execResult.stderr}`
-        );
-      } catch (error) {
-        lastError = error as Error;
-      }
-    }
-
-    if (!result) {
-      const endedAt = new Date();
-      result = {
-        success: false,
-        exitCode: 1,
-        stdout: "",
-        stderr: lastError?.message ?? "All commands failed",
-        duration: endedAt.getTime() - startedAt.getTime(),
-        runId: context.RUN_ID,
-        startedAt,
-        endedAt,
-        error: lastError?.message,
-      };
-    }
-
-    // Finalize session
-    await finalizeSession(session, {
-      success: result.success,
-      exitCode: result.exitCode,
-      duration: result.duration,
-      error: result.error,
-      stdout: result.stdout,
-      stderr: result.stderr,
-    });
-
-    return result;
   }
 }
