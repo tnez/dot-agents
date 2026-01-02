@@ -193,6 +193,24 @@ dot-agents run hello-world
 
 ## Core Concepts
 
+### Mental Model
+
+dot-agents has four core primitives that work together:
+
+| Primitive     | Defines      | Description                            |
+| ------------- | ------------ | -------------------------------------- |
+| **Personas**  | HOW          | Agent configuration (cmd, env, skills) |
+| **Workflows** | WHAT         | Tasks with triggers and inputs         |
+| **Sessions**  | WHERE        | Execution context with state           |
+| **Channels**  | COORDINATION | Messaging between sessions             |
+
+**Typical flows:**
+
+- `personas run developer` - Create session, run persona interactively
+- `run daily-standup` - Create session, execute workflow task
+- `channels publish @dev "..."` - Queue message for async persona invocation
+- Daemon watches channels, creates sessions when messages arrive
+
 ### Personas
 
 Personas define **how** an agent behaves. They specify the command to run, environment variables, available skills, and a system prompt.
@@ -476,6 +494,102 @@ Common cron patterns:
 | `0 0 1 * *`   | First of each month |
 
 Use `dot-agents check` to validate your cron expressions.
+
+## Channels
+
+Channels enable messaging between sessions, personas, and projects. They're the coordination backbone for async agent communication.
+
+### Channel Types
+
+| Prefix | Type           | Purpose                          |
+| ------ | -------------- | -------------------------------- |
+| `@`    | Direct Message | Private inbox for a persona      |
+| `#`    | Public Channel | Shared topic-based communication |
+
+### CLI Commands
+
+```bash
+# List all channels
+dot-agents channels list
+
+# Publish to a channel
+dot-agents channels publish "#status" "Deployment complete"
+
+# Publish to a persona's DM (triggers persona via daemon)
+dot-agents channels publish "@developer" "Please review PR #123"
+
+# Read recent messages
+dot-agents channels read "#status"
+dot-agents channels read "#status" --since 24h --limit 20
+
+# Read a specific thread
+dot-agents channels read "#status" --thread <thread-id>
+
+# Reply to a message
+dot-agents channels reply "#status" <message-id> "Acknowledged"
+```
+
+### Cross-Project Communication
+
+Routes messages to other registered dot-agents projects:
+
+```bash
+# Delegate to another project's entry point
+dot-agents channels publish "@other-project" "Handle this task"
+
+# Read from another project's public channel
+dot-agents channels read "#other-project/status" --since 24h
+```
+
+Register projects with `dot-agents projects add <name> <path>`.
+
+### Daemon Integration
+
+When the daemon is running:
+
+- Messages to `@persona` automatically invoke that persona
+- The persona receives the message content as input
+- Enables fire-and-forget async delegation
+
+```bash
+# This triggers the developer persona asynchronously
+dot-agents channels publish "@developer" "Fix the login bug"
+```
+
+## Sessions
+
+Sessions are execution units that capture agent work. Every `personas run` creates a session.
+
+### Session Basics
+
+```bash
+# Run a persona (creates session automatically)
+dot-agents personas run developer
+
+# Run with initial prompt
+dot-agents personas run developer --prompt "Fix the bug in auth.ts"
+
+# Resume a previous session
+dot-agents personas run developer --session-id 2025-12-23T15-30-45
+```
+
+### Session Environment
+
+Running agents receive these environment variables:
+
+| Variable      | Example                                 | Purpose                |
+| ------------- | --------------------------------------- | ---------------------- |
+| `SESSION_DIR` | `.agents/sessions/2025-12-23T15-30-45/` | Session directory path |
+| `SESSION_ID`  | `2025-12-23T15-30-45`                   | Session identifier     |
+
+Agents should write a `session.md` summary to `$SESSION_DIR` before exiting to enable resumption and handoff.
+
+### Session Lifecycle
+
+1. **Create** - `personas run` creates session directory and sets env vars
+2. **Execute** - Agent runs with full context (persona + session history)
+3. **Log** - Agent writes `session.md` summary to preserve state
+4. **Resume** - `--session-id` reloads context for continuation
 
 ## Directory Structure
 

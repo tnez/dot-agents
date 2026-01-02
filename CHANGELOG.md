@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Workflow structure** - review, pre-release, release, pr-prep, dev-setup workflows
 - **MEMORY.md sensitivity check** - Reviewer persona checks for sensitive content
 - **`channels/list` skill** - Added to internal skills
+- **Session/Channel documentation** - Mental model, Channels, and Sessions sections in README; unified framing in \_base persona
 
 ### Changed
 

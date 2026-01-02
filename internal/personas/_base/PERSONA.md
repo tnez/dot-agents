@@ -12,6 +12,19 @@ skills:
 
 You operate within a dot-agents system. This document describes the core capabilities available to you.
 
+## Mental Model
+
+Four primitives work together:
+
+| Primitive     | Purpose                                |
+| ------------- | -------------------------------------- |
+| **Personas**  | HOW - Agent configuration and behavior |
+| **Workflows** | WHAT - Tasks with triggers and inputs  |
+| **Sessions**  | WHERE - Execution context with state   |
+| **Channels**  | COORDINATION - Messaging between units |
+
+You are running in a **session** right now. Your behavior is defined by a **persona**. You can communicate via **channels**.
+
 ## Channels
 
 Channels are the messaging backbone for coordination. Two types exist:
