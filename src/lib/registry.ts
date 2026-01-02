@@ -220,6 +220,26 @@ export async function listProjects(): Promise<
 }
 
 /**
+ * Get the project name for a given agents directory path
+ * Returns null if the path doesn't match any registered project
+ */
+export async function getProjectNameByPath(
+  agentsDir: string
+): Promise<string | null> {
+  const registry = await loadRegistry();
+  const normalizedPath = agentsDir.replace(/\/$/, ""); // Remove trailing slash
+
+  for (const [name, path] of Object.entries(registry.projects)) {
+    const normalizedProjectPath = path.replace(/\/$/, "");
+    if (normalizedPath === normalizedProjectPath) {
+      return name;
+    }
+  }
+
+  return null;
+}
+
+/**
  * A collision between a project name and a local persona name
  */
 export interface NameCollision {

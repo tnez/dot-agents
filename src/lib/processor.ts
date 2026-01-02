@@ -8,6 +8,7 @@ import {
   invokePersona,
 } from "./index.js";
 import { hasPersonaFile } from "./persona.js";
+import { parseFromAddress } from "../cli/commands/channel.js";
 
 /**
  * Result of processing a single message
@@ -52,6 +53,28 @@ export interface ProcessOptions {
 }
 
 /**
+ * Build context object from message metadata
+ * Extracts callback info from 'from' field if present
+ */
+function buildMessageContext(message: PendingMessage): Record<string, string> {
+  const context: Record<string, string> = {
+    DM_MESSAGE_ID: message.id,
+  };
+
+  // Parse from address for callback routing
+  if (message.meta.from) {
+    const parsed = parseFromAddress(message.meta.from);
+    context.FROM_ADDRESS = message.meta.from;
+    context.FROM_CHANNEL = parsed.address;
+    if (parsed.thread) {
+      context.FROM_THREAD = parsed.thread;
+    }
+  }
+
+  return context;
+}
+
+/**
  * Process a single pending message by invoking the persona
  */
 async function processMessage(
@@ -61,9 +84,10 @@ async function processMessage(
   const personaName = message.channel.slice(1); // Remove @ prefix
 
   try {
+    const context = buildMessageContext(message);
     const result = await invokePersona(config, personaName, message.content, {
       source: message.channel,
-      context: { DM_MESSAGE_ID: message.id },
+      context,
       goal: `Process DM: ${personaName}`,
     });
 

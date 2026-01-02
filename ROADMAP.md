@@ -445,8 +445,8 @@ npx dot-agents channels publish "#docs/sessions" "Status update..." --thread $SE
 
 - [x] `@project` routing resolves to registered project path (routes to `@root`)
 - [x] `#project/channel` publishes to that project's channel
-- [ ] Callback tags are parsed and passed to invoked persona
-- [x] `--from` identifies sender project
+- [x] `FROM_ADDRESS` auto-set by session, parsed by processor into `FROM_CHANNEL` + `FROM_THREAD`
+- [x] `--from` identifies sender project (or uses `FROM_ADDRESS` env var)
 - [x] Caller can read callback in their session thread
 
 **Discovered:** 2026-01-02 - This exact flow failed because tmux+claude workaround bypassed the channels mechanism.

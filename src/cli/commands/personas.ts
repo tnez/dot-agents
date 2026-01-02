@@ -19,6 +19,8 @@ import {
   startSession,
   endSession,
   type SessionThread,
+  // Project registry for FROM_ADDRESS
+  getProjectNameByPath,
 } from "../../lib/index.js";
 import type { McpConfig } from "../../lib/types/persona.js";
 
@@ -232,6 +234,14 @@ personasCommand
         }
       }
 
+      // Build FROM_ADDRESS for callback routing
+      // Format: #project/sessions:session-id (if registered project) or #sessions:session-id (local)
+      let fromAddress = `#sessions:${sessionId}`;
+      const projectName = await getProjectNameByPath(config.agentsDir);
+      if (projectName) {
+        fromAddress = `#${projectName}/sessions:${sessionId}`;
+      }
+
       // Create execution context with session
       const context = createExecutionContext({
         PERSONA_NAME: persona.name,
@@ -239,6 +249,7 @@ personasCommand
         SESSION_ID: sessionId,
         SESSION_THREAD_ID: sessionId, // Alias for clarity
         SESSION_WORKSPACE: workspacePath,
+        FROM_ADDRESS: fromAddress,
       });
 
       // Build environment
@@ -249,6 +260,7 @@ personasCommand
         DOT_AGENTS_SESSION_ID: sessionId,
         DOT_AGENTS_SESSION_THREAD_ID: sessionId,
         DOT_AGENTS_SESSION_WORKSPACE: workspacePath,
+        FROM_ADDRESS: fromAddress,
       } as Record<string, string>;
 
       // Expand environment variable values

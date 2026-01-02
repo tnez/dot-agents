@@ -15,14 +15,54 @@ import {
 } from "../../lib/index.js";
 
 /**
+ * Parsed from address with optional thread context
+ */
+export interface ParsedFromAddress {
+  /** The channel or identity (e.g., "#docs/sessions", "@docs", "human:tnez") */
+  address: string;
+  /** Optional thread ID for callbacks */
+  thread?: string;
+}
+
+/**
+ * Parse a from address that may include a thread suffix
+ * Format: <address>:<thread-id> or just <address>
+ *
+ * Examples:
+ * - "#docs/sessions:2026-01-02T21:00:00.000Z" -> { address: "#docs/sessions", thread: "2026-01-02T21:00:00.000Z" }
+ * - "@docs" -> { address: "@docs", thread: undefined }
+ * - "human:tnez" -> { address: "human:tnez", thread: undefined }
+ */
+export function parseFromAddress(from: string): ParsedFromAddress {
+  // Only parse thread suffix if it starts with # (channel with thread)
+  // This avoids breaking "human:tnez" or "agent:persona"
+  if (from.startsWith("#")) {
+    // Find the last colon that separates channel from thread
+    // Thread IDs are ISO timestamps like 2026-01-02T21:00:00.000Z
+    const match = from.match(/^(#[^:]+):(.+)$/);
+    if (match) {
+      return { address: match[1], thread: match[2] };
+    }
+  }
+  return { address: from, thread: undefined };
+}
+
+/**
  * Resolve the 'from' field using priority order:
  * 1. --from flag (explicit override)
- * 2. DOT_AGENTS_PERSONA env var -> agent:<persona-path>
- * 3. Fallback to human:$USER
+ * 2. FROM_ADDRESS env var (set by session system for callbacks)
+ * 3. DOT_AGENTS_PERSONA env var -> agent:<persona-path>
+ * 4. Fallback to human:$USER
  */
 function resolveFrom(explicitFrom?: string): string {
   if (explicitFrom) {
     return explicitFrom;
+  }
+
+  // Session-provided return address for callbacks
+  const fromAddress = process.env.FROM_ADDRESS;
+  if (fromAddress) {
+    return fromAddress;
   }
 
   const persona = process.env.DOT_AGENTS_PERSONA;
