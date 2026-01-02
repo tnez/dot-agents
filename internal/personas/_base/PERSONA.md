@@ -116,13 +116,38 @@ npx dot-agents run <workflow-name>
 npx dot-agents list workflows
 ```
 
+## Projects
+
+Projects are registered dot-agents installations that can communicate with each other.
+
+```bash
+npx dot-agents projects list   # Registered projects
+```
+
+### Cross-Project Communication
+
+Delegate to another project using `@project` syntax:
+
+```bash
+# Delegate to another project's entry point
+npx dot-agents channels publish "@other-project" "Please handle this task"
+
+# Read from another project's channel
+npx dot-agents channels read "@other-project" --since 24h
+```
+
 ## Discovery
 
 ```bash
+npx dot-agents projects list   # Registered projects
+npx dot-agents channels list   # Available channels
 npx dot-agents list personas   # Available personas
 npx dot-agents list workflows  # Available workflows
-npx dot-agents list skills     # Available skills
 ```
+
+**Proactively discover your environment** - Run discovery commands at session start to understand available resources before diving into work.
+
+Note: Skills are implementation details of workflows and personas. Access capabilities through workflows and personas rather than invoking skills directly.
 
 ---
 
