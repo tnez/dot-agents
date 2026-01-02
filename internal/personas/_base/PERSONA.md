@@ -213,21 +213,25 @@ Delegates should post their status updates to the upstream session thread, keepi
 
 ### Cross-Project Delegation Callbacks
 
-When delegated work from another project, post updates back to the caller's session:
+When you receive a delegated task via DM, the system automatically provides callback routing:
+
+**Environment variables (set automatically):**
+
+- `FROM_ADDRESS` - Full callback address (e.g., `#docs/sessions:2026-01-02T21:00:00.000Z`)
+- `FROM_CHANNEL` - Channel portion (e.g., `#docs/sessions`)
+- `FROM_THREAD` - Thread ID portion (e.g., `2026-01-02T21:00:00.000Z`)
+
+**Posting callbacks:**
 
 ```bash
-# Caller from @docs delegated to you with their SESSION_ID
-# Post back to their session thread:
-npx dot-agents channels publish "#docs/sessions" "Task complete: implemented feature X" --thread $CALLER_SESSION_ID
+# Reply to the caller's session thread
+npx dot-agents channels publish "$FROM_CHANNEL" "Task complete: implemented feature X" --thread "$FROM_THREAD"
 
-# The --from flag identifies the sender (auto-populated if configured)
-npx dot-agents channels publish "#docs/sessions" "Blocked: need API credentials" --thread $CALLER_SESSION_ID --from "@this-project"
+# Or use the full address directly with --from to override sender
+npx dot-agents channels publish "$FROM_CHANNEL" "Blocked: need API credentials" --thread "$FROM_THREAD"
 ```
 
-**Delegation prompt pattern:** When receiving delegated work, expect the caller to provide:
-
-- `$CALLER_SESSION_ID` - Their session thread to post updates to
-- `$CALLER_PROJECT` - Their project identifier (e.g., `@docs`)
+**Your outgoing messages also include callback info automatically.** When you publish, your `FROM_ADDRESS` is included in the `from` field, so receivers can reply back to your session.
 
 ### Workspace Directory
 
