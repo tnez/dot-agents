@@ -15,6 +15,8 @@ dot-agents lets you define **personas** (agent configurations) and **workflows**
 
 ## Installation
 
+Requires Node.js 20+.
+
 No installation required - use `npx` to run directly:
 
 ```bash
@@ -28,111 +30,20 @@ Or install globally:
 npm install -g dot-agents
 ```
 
-Requires Node.js 20+.
-
-## Project Setup
-
-The easiest way to set up dot-agents is with the `init` command:
+## Quick Start
 
 ```bash
-# Fresh install - creates .agents/ with default persona and sample workflow
+# Initialize a new project
 npx dot-agents init
 
-# Or in a specific directory
-npx dot-agents init --dir /path/to/project
+# Run the sample workflow
+npx dot-agents run hello-world
 ```
 
-If you already have a `.agents/` directory, `init` will analyze it and guide you through migration.
+That's it! The `init` command creates:
 
-### Fresh Install
-
-Running `dot-agents init` in a directory without `.agents/` will:
-
-1. Create the directory structure (`.agents/personas/`, `.agents/workflows/`, etc.)
-2. Create a default `claude` persona
-3. Create a sample `hello-world` workflow
-
-You can also set up manually:
-
-```bash
-mkdir -p .agents/personas/claude .agents/workflows/hello
-```
-
-**Required persona fields:**
-
-```yaml
----
-name: my-persona # Required: unique identifier
-cmd: "claude --print" # Required for root personas (can be inherited)
-description: "..." # Optional but recommended
----
-```
-
-**Required workflow fields:**
-
-```yaml
----
-name: my-workflow # Required: unique identifier
-description: "..." # Required: human-readable description
-persona: my-persona # Required: must match a persona name/path
----
-```
-
-See [Quick Start](#quick-start) for a complete example.
-
-### Migrating Existing `.agents/` Directory
-
-If you have an existing `.agents/` directory with skills or workflows:
-
-```bash
-dot-agents init
-```
-
-The init command will:
-
-1. Analyze your existing structure
-2. Create a `personas/` directory with a default persona if missing
-3. Report which workflows need frontmatter updates
-
-**Workflow migration changes:**
-
-| Old Field      | New Field         | Notes                                  |
-| -------------- | ----------------- | -------------------------------------- |
-| `goal:`        | `description:`    | Rename the field                       |
-| (missing)      | `persona: claude` | Add reference to your persona          |
-| `skills_used:` | (move to persona) | Skills belong in persona, not workflow |
-
-Before:
-
-```yaml
----
-name: my-workflow
-goal: Do something useful
-skills_used:
-  - osx/calendar
-  - productivity/query-todos
----
-```
-
-After:
-
-```yaml
----
-name: my-workflow
-description: Do something useful
-persona: claude
-on:
-  manual: true
----
-```
-
-**Verify after migration:**
-
-```bash
-dot-agents list personas
-dot-agents list workflows
-dot-agents run my-workflow --dry-run
-```
+- `.agents/personas/claude/PERSONA.md` - Default Claude persona
+- `.agents/workflows/hello/WORKFLOW.md` - Sample hello-world workflow
 
 ### Directory Discovery
 
@@ -143,9 +54,11 @@ dot-agents searches for `.agents/` in these locations (in order):
 
 This means you can run `dot-agents` from any subdirectory of a project.
 
-## Quick Start
+## Manual Setup
 
-### 1. Create a `.agents` directory
+If you prefer to set up manually (or want to understand the structure):
+
+### 1. Create directories
 
 ```bash
 mkdir -p .agents/personas/claude .agents/workflows/hello
@@ -159,9 +72,7 @@ Create `.agents/personas/claude/PERSONA.md`:
 ---
 name: claude
 description: Base Claude persona
-cmd:
-  - "claude --print"
-  - "claude -p"
+cmd: "claude --print" # Or array for fallbacks: ["claude --print", "claude -p"]
 env:
   CLAUDE_MODEL: sonnet
 ---
@@ -191,6 +102,28 @@ Say hello and tell me today's date.
 dot-agents run hello-world
 ```
 
+### Required Fields Reference
+
+**Persona fields:**
+
+```yaml
+---
+name: my-persona # Required: unique identifier
+cmd: "claude --print" # Required for root personas (can be inherited)
+description: "..." # Optional but recommended
+---
+```
+
+**Workflow fields:**
+
+```yaml
+---
+name: my-workflow # Required: unique identifier
+description: "..." # Required: human-readable description
+persona: my-persona # Required: must match a persona name/path
+---
+```
+
 ## Core Concepts
 
 ### Mental Model
@@ -211,6 +144,25 @@ dot-agents has four core primitives that work together:
 - `channels publish @dev "..."` - Queue message for async persona invocation
 - Daemon watches channels, creates sessions when messages arrive
 
+### Directory Structure
+
+```text
+.agents/
+├── personas/           # Agent configurations
+│   └── claude/
+│       ├── PERSONA.md  # Base Claude persona
+│       └── autonomous/
+│           ├── PERSONA.md  # Inherits from claude
+│           └── productivity/
+│               └── PERSONA.md  # Inherits from autonomous
+├── workflows/          # Task definitions
+│   └── daily-standup/
+│       └── WORKFLOW.md
+├── skills/             # Reusable capabilities (optional)
+├── channels/           # Message storage
+└── sessions/           # Execution logs
+```
+
 ### Personas
 
 Personas define **how** an agent behaves. They specify the command to run, environment variables, available skills, and a system prompt.
@@ -227,6 +179,23 @@ skills:
   - "!productivity/experimental/*"
 ---
 System prompt goes here in the markdown body...
+```
+
+**Command formats:** The `cmd` field supports three formats:
+
+```yaml
+# String - single command
+cmd: "claude --print"
+
+# Array - fallback alternatives (tries first, falls back to second, etc.)
+cmd:
+  - "claude --print"
+  - "claude -p"
+
+# Object - mode-specific commands
+cmd:
+  headless: ["claude", "--print"]      # Used with --headless flag
+  interactive: ["claude"]              # Used with TTY or --interactive flag
 ```
 
 **Persona inheritance:** Personas cascade through directories. A persona at `personas/claude/autonomous/productivity/` inherits from `personas/claude/autonomous/` which inherits from `personas/claude/`.
@@ -263,7 +232,8 @@ Focus on: what was accomplished, what's in progress, any blockers.
 
 - `manual: true` - Can be run on-demand
 - `schedule` - Cron-based scheduling (requires daemon)
-- Future: `file_change`, `webhook`, `git`
+- `channel` - Trigger on channel messages (requires daemon)
+- Planned: `file_change`, `webhook`, `git`
 
 ### Variable Expansion
 
@@ -291,10 +261,18 @@ Commands:
   daemon status            Check daemon status
   daemon jobs              List scheduled jobs
   daemon trigger <name>    Manually trigger a workflow
+  channels list            List all channels
+  channels publish         Publish a message to a channel
+  channels read            Read messages from a channel
+  channels reply           Reply to a message thread
+  channels process         Process pending DM messages (one-shot)
+  personas run <name>      Run a persona interactively or headless
+  projects list            List registered projects
+  projects add <name>      Register a project for cross-project routing
+  projects remove <name>   Unregister a project
 
 Aliases:
-  workflows                List all workflows
-  personas                 List all personas
+  workflows                List all workflows (alias for 'list workflows')
 ```
 
 ### Running Workflows
@@ -381,7 +359,7 @@ dot-agents daemon run -p 8080
 dot-agents daemon run --no-watch
 ```
 
-**Important:** The daemon must be run from a directory containing `.agents/` (or a subdirectory of one).
+> **⚠️ Important:** The daemon must be run from a directory containing `.agents/` (or a subdirectory of one).
 
 ### Managing the Daemon
 
@@ -531,17 +509,26 @@ dot-agents channels reply "#status" <message-id> "Acknowledged"
 
 ### Cross-Project Communication
 
-Routes messages to other registered dot-agents projects:
+Routes messages to other registered dot-agents projects using `project/` prefix:
 
 ```bash
-# Delegate to another project's entry point
+# Publish to another project's entry persona (@project routes to root persona)
 dot-agents channels publish "@other-project" "Handle this task"
+
+# Publish to a specific persona in another project
+dot-agents channels publish "@other-project/developer" "Review this PR"
 
 # Read from another project's public channel
 dot-agents channels read "#other-project/status" --since 24h
 ```
 
-Register projects with `dot-agents projects add <name> <path>`.
+**Syntax patterns:**
+
+- `@project` - Routes to project's root persona (entry point)
+- `@project/persona` - Routes to specific persona in project
+- `#project/channel` - Routes to public channel in project
+
+Register projects first with `dot-agents projects add <name> <path>`. See [Projects](#projects) section.
 
 ### Daemon Integration
 
@@ -591,23 +578,39 @@ Agents should write a `session.md` summary to `$SESSION_DIR` before exiting to e
 3. **Log** - Agent writes `session.md` summary to preserve state
 4. **Resume** - `--session-id` reloads context for continuation
 
-## Directory Structure
+## Projects
 
-```text
-.agents/
-├── personas/           # Agent configurations
-│   └── claude/
-│       ├── PERSONA.md  # Base Claude persona
-│       └── autonomous/
-│           ├── PERSONA.md  # Inherits from claude
-│           └── productivity/
-│               └── PERSONA.md  # Inherits from autonomous
-├── workflows/          # Task definitions
-│   └── daily-standup/
-│       └── WORKFLOW.md
-├── skills/             # Reusable capabilities (optional)
-└── sessions/           # Execution logs
+Projects enable cross-project communication by registering other dot-agents installations.
+
+### Managing Projects
+
+```bash
+# List registered projects
+dot-agents projects list
+
+# Register a project
+dot-agents projects add my-docs /path/to/docs-project
+
+# Remove a project
+dot-agents projects remove my-docs
 ```
+
+### Using Registered Projects
+
+Once registered, you can communicate with other projects via channels:
+
+```bash
+# Send task to another project's entry persona
+dot-agents channels publish "@my-docs" "Update the API reference"
+
+# Send to specific persona in another project
+dot-agents channels publish "@my-docs/writer" "Draft release notes"
+
+# Read from another project's channel
+dot-agents channels read "#my-docs/updates"
+```
+
+Projects are stored in `~/.dot-agents/projects.json`.
 
 ## Skills
 
