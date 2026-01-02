@@ -137,27 +137,61 @@ export function parseChannelAddress(address: string): CrossProjectAddress {
 }
 
 /**
+ * Result of resolving a channel address
+ */
+export interface ResolvedChannelAddress {
+  /** Path to the channels directory (local or remote) */
+  channelsDir: string;
+  /** Channel name within that directory (e.g., @persona, #channel, @root) */
+  localChannelName: string;
+  /** True if this resolved to a project's entry point */
+  isProjectEntryPoint?: boolean;
+  /** The project name if routed to a project */
+  projectName?: string;
+}
+
+/**
  * Resolve a channel address to a channels directory and local channel name
+ *
+ * Resolution order for @name (without /):
+ * 1. Check registered projects first - if found, routes to project's @root
+ * 2. Fall back to local persona lookup
  *
  * Returns:
  * - channelsDir: The path to the channels directory (local or remote)
  * - localChannelName: The channel name within that directory (e.g., @persona, #channel)
+ * - isProjectEntryPoint: True if routed to a project's entry point
+ * - projectName: The project name if routed to a project
  */
 export async function resolveChannelAddress(
   address: string,
   localChannelsDir: string
-): Promise<{ channelsDir: string; localChannelName: string }> {
+): Promise<ResolvedChannelAddress> {
   const parsed = parseChannelAddress(address);
 
   if (parsed.project === null) {
-    // Local channel
+    // Check if @name matches a registered project (unified resolution)
+    if (parsed.type === "@") {
+      const projectPath = await resolveProject(parsed.name);
+      if (projectPath) {
+        // Route to project's entry point (@root)
+        return {
+          channelsDir: join(projectPath, "channels"),
+          localChannelName: "@root",
+          isProjectEntryPoint: true,
+          projectName: parsed.name,
+        };
+      }
+    }
+
+    // Local channel (no project match or public channel)
     return {
       channelsDir: localChannelsDir,
       localChannelName: address,
     };
   }
 
-  // Cross-project channel
+  // Cross-project channel with explicit project/name format
   const projectPath = await resolveProject(parsed.project);
   if (!projectPath) {
     throw new Error(
@@ -168,6 +202,7 @@ export async function resolveChannelAddress(
   return {
     channelsDir: join(projectPath, "channels"),
     localChannelName: `${parsed.type}${parsed.name}`,
+    projectName: parsed.project,
   };
 }
 
@@ -182,4 +217,42 @@ export async function listProjects(): Promise<
     name,
     path,
   }));
+}
+
+/**
+ * A collision between a project name and a local persona name
+ */
+export interface NameCollision {
+  /** The conflicting name */
+  name: string;
+  /** Path to the registered project */
+  projectPath: string;
+  /** Path to the local persona */
+  personaPath: string;
+}
+
+/**
+ * Detect collisions between registered project names and local persona names.
+ * When a collision exists, @name will route to the project (projects take priority).
+ */
+export async function detectNameCollisions(
+  personaNames: string[],
+): Promise<NameCollision[]> {
+  const registry = await loadRegistry();
+  const collisions: NameCollision[] = [];
+
+  for (const [projectName, projectPath] of Object.entries(registry.projects)) {
+    // Check if any persona name matches the project name
+    for (const personaName of personaNames) {
+      if (personaName === projectName) {
+        collisions.push({
+          name: projectName,
+          projectPath: projectPath,
+          personaPath: personaName,
+        });
+      }
+    }
+  }
+
+  return collisions;
 }

@@ -38,6 +38,34 @@ function parseChannelAddress(address: string): CrossProjectAddress {
   return { project: null, type, name: rest, original: address };
 }
 
+interface NameCollision {
+  name: string;
+  projectPath: string;
+  personaPath: string;
+}
+
+// Inline detectNameCollisions logic for testing
+function detectNameCollisions(
+  personaNames: string[],
+  projectRegistry: Record<string, string>
+): NameCollision[] {
+  const collisions: NameCollision[] = [];
+
+  for (const [projectName, projectPath] of Object.entries(projectRegistry)) {
+    for (const personaName of personaNames) {
+      if (personaName === projectName) {
+        collisions.push({
+          name: projectName,
+          projectPath: projectPath,
+          personaPath: personaName,
+        });
+      }
+    }
+  }
+
+  return collisions;
+}
+
 describe("parseChannelAddress", () => {
   describe("local channels", () => {
     it("parses local DM address (@persona)", () => {
@@ -111,5 +139,57 @@ describe("parseChannelAddress", () => {
     it("throws for empty address", () => {
       assert.throws(() => parseChannelAddress(""), /Invalid channel address/);
     });
+  });
+});
+
+describe("detectNameCollisions", () => {
+  it("detects collision when persona name matches project name", () => {
+    const personaNames = ["developer", "documents", "reviewer"];
+    const registry = {
+      documents: "/path/to/documents",
+      scoutos: "/path/to/scoutos",
+    };
+
+    const collisions = detectNameCollisions(personaNames, registry);
+
+    assert.strictEqual(collisions.length, 1);
+    assert.strictEqual(collisions[0].name, "documents");
+    assert.strictEqual(collisions[0].projectPath, "/path/to/documents");
+    assert.strictEqual(collisions[0].personaPath, "documents");
+  });
+
+  it("returns empty array when no collisions", () => {
+    const personaNames = ["developer", "reviewer"];
+    const registry = {
+      documents: "/path/to/documents",
+      scoutos: "/path/to/scoutos",
+    };
+
+    const collisions = detectNameCollisions(personaNames, registry);
+
+    assert.strictEqual(collisions.length, 0);
+  });
+
+  it("detects multiple collisions", () => {
+    const personaNames = ["developer", "documents", "scoutos"];
+    const registry = {
+      documents: "/path/to/documents",
+      scoutos: "/path/to/scoutos",
+    };
+
+    const collisions = detectNameCollisions(personaNames, registry);
+
+    assert.strictEqual(collisions.length, 2);
+    const names = collisions.map((c) => c.name).sort();
+    assert.deepStrictEqual(names, ["documents", "scoutos"]);
+  });
+
+  it("handles empty inputs", () => {
+    assert.strictEqual(detectNameCollisions([], {}).length, 0);
+    assert.strictEqual(detectNameCollisions(["dev"], {}).length, 0);
+    assert.strictEqual(
+      detectNameCollisions([], { proj: "/path" }).length,
+      0
+    );
   });
 });
