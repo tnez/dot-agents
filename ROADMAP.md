@@ -404,7 +404,52 @@ npx dot-agents channels publish "@docs#sessions" "Status update..." --thread $SE
 - Document pattern in \_base persona for cross-project delegations
 - Add end-to-end spec: delegation → work → callback → caller reads update
 
-**Discovered:** 2026-01-02 during cross-project delegation flow analysis.
+### E2E Test Case: Cross-Project Delegation
+
+**Scenario:** `@docs/dottie` delegates "add channel tests" to `@dot-agents`
+
+**Preconditions:**
+
+- Two registered projects: `docs` and `dot-agents`
+- `@docs/dottie` has an active session thread in `#sessions`
+
+**Flow:**
+
+```text
+1. @docs/dottie starts session
+   → SESSION_ID=2026-01-02T21:00:00.000Z created in @docs#sessions
+
+2. @docs/dottie publishes delegation
+   → npx dot-agents channels publish "@dot-agents" "Add channel tests..." \
+       --tags "callback:@docs#sessions,thread:$SESSION_ID"
+
+3. @dot-agents processes message (daemon or `channels process`)
+   → Extracts callback info from tags
+   → Invokes persona with task + callback context
+   → Sets CALLER_SESSION_ID and CALLER_PROJECT env vars
+
+4. @dot-agents/developer does work
+   → Reads channel.ts, writes tests, runs them
+
+5. @dot-agents/developer posts callback
+   → npx dot-agents channels publish "@docs#sessions" \
+       "Task complete: added 12 channel tests, all passing" \
+       --thread $CALLER_SESSION_ID --from "@dot-agents"
+
+6. @docs/dottie reads session thread
+   → npx dot-agents channels read "#sessions" --thread $SESSION_ID
+   → Sees callback message from @dot-agents
+```
+
+**Assertions:**
+
+- [ ] `@project` routing resolves to registered project path
+- [ ] `@project#channel` publishes to that project's channel
+- [ ] Callback tags are parsed and passed to invoked persona
+- [ ] `--from` identifies sender project
+- [ ] Caller can read callback in their session thread
+
+**Discovered:** 2026-01-02 - This exact flow failed because tmux+claude workaround bypassed the channels mechanism.
 
 ---
 
