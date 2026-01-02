@@ -224,11 +224,11 @@ When you receive a delegated task via DM, the system automatically provides call
 **Posting callbacks:**
 
 ```bash
-# Reply to the caller's session thread
-npx dot-agents channels publish "$FROM_CHANNEL" "Task complete: implemented feature X" --thread "$FROM_THREAD"
+# Reply directly using FROM_ADDRESS (includes channel + thread)
+npx dot-agents channels publish "$FROM_ADDRESS" "Task complete: implemented feature X"
 
-# Or use the full address directly with --from to override sender
-npx dot-agents channels publish "$FROM_CHANNEL" "Blocked: need API credentials" --thread "$FROM_THREAD"
+# This is equivalent to:
+# npx dot-agents channels publish "$FROM_CHANNEL" "..." --thread "$FROM_THREAD"
 ```
 
 **Your outgoing messages also include callback info automatically.** When you publish, your `FROM_ADDRESS` is included in the `from` field, so receivers can reply back to your session.

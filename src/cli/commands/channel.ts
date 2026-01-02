@@ -114,7 +114,7 @@ channelsCommand
 channelsCommand
   .command("publish")
   .description("Publish a message to a channel")
-  .argument("<channel>", "Channel name (e.g., #status, @persona, @project)")
+  .argument("<channel>", "Channel name (e.g., #status, @persona, #channel:thread-id)")
   .argument("<message>", "Message content")
   .option("--from <from>", "Sender identifier")
   .option("--run-id <runId>", "Run ID for workflow context")
@@ -122,10 +122,15 @@ channelsCommand
   .option("--thread <threadId>", "Thread ID to add message to (default: creates new thread)")
   .action(async (channel, message, options) => {
     try {
+      // Parse channel address - may include thread suffix (#channel:thread-id)
+      const parsed = parseFromAddress(channel);
+      const channelName = parsed.address;
+      const embeddedThread = parsed.thread;
+
       // Validate basic format (must start with # or @)
-      if (!isChannelName(channel)) {
+      if (!isChannelName(channelName)) {
         console.error(
-          chalk.red(`Invalid channel name: ${channel}. Must start with # or @`)
+          chalk.red(`Invalid channel name: ${channelName}. Must start with # or @`)
         );
         process.exit(1);
       }
@@ -134,7 +139,7 @@ channelsCommand
 
       // Resolve channel address (checks projects first for @name)
       const resolved = await resolveChannelAddress(
-        channel,
+        channelName,
         config.channelsDir
       );
 
@@ -145,8 +150,8 @@ channelsCommand
       if (options.runId) meta.run_id = options.runId;
       if (options.tags) meta.tags = options.tags.split(",").map((t: string) => t.trim());
 
-      // Every message belongs to a thread - use provided or create new
-      const threadId = options.thread || crypto.randomUUID();
+      // Thread priority: --thread flag > embedded in channel > new UUID
+      const threadId = options.thread || embeddedThread || crypto.randomUUID();
       meta.thread_id = threadId;
 
       const messageId = await publishMessage(
