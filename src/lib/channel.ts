@@ -12,6 +12,7 @@ import type {
 
 const METADATA_FILE = "_metadata.yaml";
 const MESSAGE_FILE = "message.md";
+const LAST_PROCESSED_FILE = "_last_processed.yaml";
 
 /**
  * Check if a path exists and is a directory
@@ -330,4 +331,164 @@ export async function loadChannelMetadata(
 
   const content = await readFile(metadataPath, "utf-8");
   return parseYaml(content) as ChannelMetadata;
+}
+
+/**
+ * Last processed tracking for channels process command
+ */
+interface LastProcessedInfo {
+  /** ISO timestamp of when the channel was last processed */
+  last_processed_at: string;
+  /** Hostname that performed the last processing */
+  processed_by: string;
+}
+
+/**
+ * Get the last processed timestamp for a channel
+ */
+export async function getLastProcessedTime(
+  channelsDir: string,
+  channelName: string
+): Promise<Date | null> {
+  const lastProcessedPath = join(channelsDir, channelName, LAST_PROCESSED_FILE);
+
+  if (!(await isFile(lastProcessedPath))) {
+    return null;
+  }
+
+  try {
+    const content = await readFile(lastProcessedPath, "utf-8");
+    const info = parseYaml(content) as LastProcessedInfo;
+    return new Date(info.last_processed_at);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Mark a channel as processed at the current time
+ */
+export async function markChannelProcessed(
+  channelsDir: string,
+  channelName: string
+): Promise<void> {
+  const channelPath = join(channelsDir, channelName);
+
+  if (!(await isDirectory(channelPath))) {
+    return;
+  }
+
+  const info: LastProcessedInfo = {
+    last_processed_at: new Date().toISOString(),
+    processed_by: hostname(),
+  };
+
+  const lastProcessedPath = join(channelPath, LAST_PROCESSED_FILE);
+  await writeFile(lastProcessedPath, stringifyYaml(info), "utf-8");
+}
+
+/**
+ * A pending message that needs processing
+ */
+export interface PendingMessage {
+  /** Message ID (ISO 8601 timestamp) */
+  id: string;
+  /** Channel name (e.g., @persona) */
+  channel: string;
+  /** Path to the message file */
+  path: string;
+  /** Message content (body, without frontmatter) */
+  content: string;
+  /** Message metadata */
+  meta: ChannelMessageMeta;
+}
+
+/**
+ * Get pending (unprocessed) messages for a DM channel
+ * Returns messages newer than the last processed timestamp
+ */
+export async function getPendingMessages(
+  channelsDir: string,
+  channelName: string
+): Promise<PendingMessage[]> {
+  const channelPath = join(channelsDir, channelName);
+
+  if (!(await isDirectory(channelPath))) {
+    return [];
+  }
+
+  const lastProcessed = await getLastProcessedTime(channelsDir, channelName);
+  const entries = await readdir(channelPath, { withFileTypes: true });
+  const pending: PendingMessage[] = [];
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    if (entry.name.startsWith("_")) continue;
+
+    // Message ID is an ISO timestamp
+    const messageDate = new Date(entry.name);
+    if (Number.isNaN(messageDate.getTime())) continue;
+
+    // Skip if already processed
+    if (lastProcessed && messageDate <= lastProcessed) continue;
+
+    const messageDir = join(channelPath, entry.name);
+    const messagePath = join(messageDir, MESSAGE_FILE);
+
+    if (!(await isFile(messagePath))) continue;
+
+    try {
+      const content = await readFile(messagePath, "utf-8");
+      let meta: ChannelMessageMeta = {};
+      let body: string;
+
+      if (content.startsWith("---\n")) {
+        try {
+          const parsed = parseFrontmatter<ChannelMessageMeta>(content);
+          meta = parsed.frontmatter;
+          body = parsed.body;
+        } catch {
+          body = content;
+        }
+      } else {
+        body = content.trim();
+      }
+
+      pending.push({
+        id: entry.name,
+        channel: channelName,
+        path: messagePath,
+        content: body,
+        meta,
+      });
+    } catch {
+      continue;
+    }
+  }
+
+  // Sort by timestamp ascending (oldest first for processing order)
+  return pending.sort((a, b) => a.id.localeCompare(b.id));
+}
+
+/**
+ * List all DM channels (@persona) in the channels directory
+ */
+export async function listDMChannels(
+  channelsDir: string
+): Promise<string[]> {
+  if (!(await isDirectory(channelsDir))) {
+    return [];
+  }
+
+  const entries = await readdir(channelsDir, { withFileTypes: true });
+  const dmChannels: string[] = [];
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    if (entry.name.startsWith("@")) {
+      dmChannels.push(entry.name);
+    }
+  }
+
+  return dmChannels.sort();
 }

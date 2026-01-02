@@ -9,6 +9,9 @@ import {
   isChannelName,
   resolveChannelAddress,
   parseChannelAddress,
+  processChannels,
+  listDMChannels,
+  getPendingMessages,
 } from "../../lib/index.js";
 
 /**
@@ -280,3 +283,103 @@ function formatTimestamp(isoTimestamp: string): string {
     return isoTimestamp;
   }
 }
+
+channelsCommand
+  .command("process")
+  .description("Process pending messages in DM channels (one-shot)")
+  .argument("[channel]", "Specific channel to process (e.g., @persona)")
+  .option("--dry-run", "Show pending messages without processing")
+  .action(async (channel, options) => {
+    try {
+      const config = await requireConfig();
+
+      // Validate channel format if provided
+      if (channel && !channel.startsWith("@")) {
+        console.error(
+          chalk.red(`Invalid channel: ${channel}. Only DM channels (@persona) can be processed.`)
+        );
+        process.exit(1);
+      }
+
+      if (options.dryRun) {
+        // Dry run: just show pending messages
+        let channels: string[];
+        if (channel) {
+          channels = [channel];
+        } else {
+          channels = await listDMChannels(config.channelsDir);
+        }
+
+        let totalPending = 0;
+
+        for (const ch of channels) {
+          const pending = await getPendingMessages(config.channelsDir, ch);
+          if (pending.length === 0) continue;
+
+          totalPending += pending.length;
+          console.log(chalk.blue(`\n${ch} (${pending.length} pending):`));
+
+          for (const msg of pending) {
+            const from = msg.meta.from || "unknown";
+            const timestamp = formatTimestamp(msg.id);
+            console.log(chalk.white(`  [${timestamp}] ${chalk.cyan(from)}`));
+            console.log(chalk.dim(`    ID: ${msg.id}`));
+            const lines = msg.content.split("\n").slice(0, 3);
+            for (const line of lines) {
+              console.log(`    ${line}`);
+            }
+            if (msg.content.split("\n").length > 3) {
+              console.log(chalk.dim(`    ...`));
+            }
+          }
+        }
+
+        if (totalPending === 0) {
+          console.log(chalk.yellow("No pending messages to process"));
+        } else {
+          console.log(chalk.dim(`\nTotal: ${totalPending} pending message(s)`));
+        }
+        return;
+      }
+
+      // Process messages
+      console.log(chalk.blue("Processing pending messages..."));
+
+      const result = await processChannels(config, {
+        channel,
+        requirePersona: true,
+      });
+
+      if (result.messagesProcessed === 0) {
+        console.log(chalk.yellow("No pending messages to process"));
+        return;
+      }
+
+      // Show results
+      for (const r of result.results) {
+        if (r.success) {
+          console.log(
+            chalk.green(`  [ok] ${r.channel} ${r.messageId.slice(0, 19)} (${r.duration}ms)`)
+          );
+        } else {
+          console.log(
+            chalk.red(`  [fail] ${r.channel} ${r.messageId.slice(0, 19)}: ${r.error}`)
+          );
+        }
+      }
+
+      console.log();
+      console.log(
+        chalk.dim(
+          `Processed ${result.messagesProcessed} message(s) across ${result.channelsChecked} channel(s)`
+        )
+      );
+
+      if (!result.success) {
+        process.exit(1);
+      }
+    } catch (error) {
+      console.error(chalk.red(`Error: ${(error as Error).message}`));
+      process.exit(1);
+    }
+  });
