@@ -2,6 +2,7 @@
 name: _base
 description: dot-agents system knowledge inherited by all personas
 skills:
+  - channels/list
   - channels/publish
   - channels/read
   - channels/reply

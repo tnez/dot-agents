@@ -1,31 +1,33 @@
 ---
-name: channels-list
+name: channels/list
 description: List all available channels. Use when discovering what channels exist or checking channel metadata.
 license: MIT
-allowed-tools:
-  - Bash
 ---
 
-# Channels List
+# List Channels
 
 List all channels to discover available communication streams.
 
 ## When to Use This Skill
 
-Use channels-list when you need to:
+Use this skill when you need to:
 
 - Discover what channels exist
 - Check channel metadata (creator, creation date)
 - Find the right channel to publish to
 - Get an overview of communication streams
 
-## Usage
+## Process
+
+### Step 1: List All Channels
 
 ```bash
-bash scripts/list.sh
+npx dot-agents channels list
 ```
 
-## Output
+### Step 2: Review Output
+
+The output shows all channels with their metadata:
 
 ```text
 Channels (4):
@@ -38,11 +40,7 @@ Channels (4):
     Problems, blockers, and errors
     created by system at 2025-12-10T08:00:00.000Z
 
-  #decisions
-    Important decisions and their rationale
-    created by human:tnez at 2025-12-11T10:30:00.000Z
-
-  @claude--autonomous
+  @developer
     created by human:tnez at 2025-12-12T09:00:00.000Z
 ```
 
@@ -51,22 +49,28 @@ Channels (4):
 ### Example 1: Check Available Channels
 
 ```bash
-bash scripts/list.sh
+npx dot-agents channels list
 ```
 
-### Example 2: Pipe to grep
+### Example 2: Filter Public Channels
 
 ```bash
-bash scripts/list.sh | grep "#"
+npx dot-agents channels list | grep "^  #"
 ```
 
-## Dependencies
+### Example 3: Filter DM Channels
 
-- `dot-agents` CLI (installed globally or via npm link)
+```bash
+npx dot-agents channels list | grep "^  @"
+```
+
+## Channel Types
+
+- `#channel-name` - Public channels for topic-based communication
+- `@persona-name` - Direct message inboxes for personas
 
 ## Notes
 
-- Channels starting with `#` are public
-- Channels starting with `@` are direct messages to personas
-- Empty result means no channels have been created yet
 - Channels are created automatically when first message is published
+- Empty result means no channels have been created yet
+- Use this before publishing to discover the right channel
