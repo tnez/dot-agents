@@ -26,6 +26,39 @@ Ship a built-in agent CLI runner so users can run dot-agents with local LLMs wit
 
 ---
 
+## Examples Library <!-- target: next-major -->
+
+Curated example projects demonstrating dot-agents patterns for common use cases.
+
+**Initial examples:**
+
+- **Software Development** - Multi-persona setup for a codebase (developer, reviewer, planner, tester). Demonstrates: Linear/GitHub integration, code review workflows, CI coordination.
+- **Personal Knowledge Management** - PARA-style second brain with inbox processing, journaling, and review workflows. Demonstrates: daemon scheduling, channel-based coordination, human escalation patterns.
+
+**Prior art:** Generalize from working setups (scoutos, docs) - extract what works well and make it reusable.
+
+**Structure:**
+
+```text
+examples/
+├── software-dev/
+│   ├── .agents/
+│   │   ├── PERSONA.md
+│   │   ├── personas/
+│   │   └── workflows/
+│   └── README.md
+└── pkm/
+    ├── .agents/
+    │   ├── PERSONA.md
+    │   ├── personas/
+    │   └── workflows/
+    └── README.md
+```
+
+**Goal:** New users can clone an example and have a working setup immediately.
+
+---
+
 ## Agent Adapter Pattern <!-- target: next-major -->
 
 Personas declare agent type; adapters handle CLI specifics.
