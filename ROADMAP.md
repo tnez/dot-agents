@@ -186,6 +186,45 @@ Refactor daemon to use `personas run` as underlying primitive.
 
 ---
 
+## Unified Channel Address Resolution <!-- target: next-minor -->
+
+Resolve `@name` addresses by checking both registered projects and local personas.
+
+**Problem:** When publishing to `@project-name`, the user expects it to route to the registered project. Currently, cross-project routing requires explicit `@project/persona` syntax, but `@project` alone (delegating to the project's entry point) feels more natural.
+
+**Current behavior:**
+
+- `@persona` → local persona DM
+- `@project/persona` → cross-project persona DM
+
+**Proposed behavior:**
+
+- `@name` → check registered projects first, then local personas (or configurable order)
+- `@name` to a project → routes to that project's root/entry point
+- Conflict detection in `health check` when a local persona name matches a registered project name
+
+**Example:**
+
+```bash
+# Current (explicit)
+npx dot-agents channels publish "@myproject/root" "do something"
+
+# Proposed (natural)
+npx dot-agents channels publish "@myproject" "do something"
+# → resolves to registered project's entry point
+```
+
+**Implementation:**
+
+1. `channels publish @name` checks `projects.yaml` for matching project
+2. If found, routes to `@project/root` (or implicit entry point)
+3. If not found, falls back to local persona lookup
+4. `health check` warns on name collisions between projects and personas
+
+**Discovered:** 2026-01-02 during cross-project delegation attempt.
+
+---
+
 ## `channels process` Command <!-- target: backlog -->
 
 One-shot trigger processing for repos without always-on daemon.
