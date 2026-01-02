@@ -2,6 +2,36 @@
 
 All notable changes to dot-agents will be documented in this file.
 
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+
+- **Formal ROADMAP.md** - Versioned release targets (next-minor, next-major, backlog)
+- **Cross-project channel routing** - `@project/persona` and `#project/channel` syntax
+- **Project registry** - `npx dot-agents registry add|remove|list` for cross-project routing
+- **Session context injection** - `--session-id` now loads and injects session content
+- **Activity-based checkpointing** - Provider-agnostic 5-min inactivity reminder
+- **Root persona support** - `.agents/PERSONA.md` as implicit entry point
+- **Workflow structure** - review, pre-release, release, pr-prep, dev-setup workflows
+- **MEMORY.md sensitivity check** - Reviewer persona checks for sensitive content
+- **`channels/list` skill** - Added to internal skills
+
+### Changed
+
+- **Simplified persona hierarchy** - Convention-based inheritance, no explicit `inherits:`
+- **Consolidated skills** - `internal/skills/` is now canonical location for built-in skills
+- **Updated .gitignore** - Supports .agents/ check-in while protecting sensitive data
+- **Migrated TODO.md** - Content moved to MEMORY.md and ROADMAP.md
+
+### Removed
+
+- **Claude-specific exit hooks** - Violated provider-agnostic principle (reverted)
+- **Duplicate skills** - `skills/channels/` removed (canonical is `internal/skills/`)
+- **`skills/documents/`** - Moved to documents project where it belongs
+
 ## [0.5.0] - 2025-12-16
 
 ### Added

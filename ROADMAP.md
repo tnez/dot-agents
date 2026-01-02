@@ -10,6 +10,22 @@ Future features and improvements planned for dot-agents.
 
 ---
 
+## Bundled Agent CLI <!-- target: next-major -->
+
+Ship a built-in agent CLI runner so users can run dot-agents with local LLMs without external dependencies.
+
+**Problem:** Currently requires external CLI tools (claude, aider, etc.) which may not support local models.
+
+**Proposed:**
+
+- Bundle a simple agent CLI that speaks to local LLM APIs (Ollama, LM Studio, llama.cpp)
+- Direct API integration without shelling out to external tools
+- First-class local model support for privacy-sensitive or offline use cases
+
+**Enables:** Running dot-agents completely locally without cloud dependencies.
+
+---
+
 ## Agent Adapter Pattern <!-- target: next-major -->
 
 Personas declare agent type; adapters handle CLI specifics.
@@ -29,6 +45,16 @@ Each adapter implements:
 - `buildHeadlessCommand(persona, prompt)`
 - `injectMcp(persona, mcpConfig)`
 
+**Target adapters for 1.0:**
+
+- Claude Code
+- OpenCode
+- Aider
+- Goose
+- Gemini CLI
+- Codex
+- Bundled CLI (see above)
+
 **CLI differences discovered:**
 
 | CLI      | Interactive       | Headless                  | System Prompt          |
@@ -42,21 +68,23 @@ Each adapter implements:
 
 ---
 
-## Multi-Project Daemon Architecture <!-- target: next-major -->
+## First-Class Cross-Project Orchestration <!-- target: next-major -->
 
-One daemon orchestrating multiple .agents installations with encapsulated delegation.
+Elevate cross-project communication from "works" to "first-class citizen" with robust orchestration primitives.
 
 **Current state:**
 
-- Daemon runs in one location (e.g., ~/Documents/.agents)
-- Other projects have their own .agents/ but no daemon
+- Cross-project routing works (`@project/persona` syntax)
 - Delegation is manual (tmux sessions, direct launches)
+- No built-in callback/response handling
 
-**Proposed:**
+**1.0 Goals:**
 
-- Single daemon knows about multiple projects (via registry)
-- Cross-project routing already works (`@project/persona` syntax)
-- Daemon routes messages between projects automatically
+- Automatic daemon coordination across registered projects
+- Structured request/response patterns between projects
+- Built-in callback routing (responses flow back to caller)
+- Project health monitoring and status visibility
+- Workflow orchestration spanning multiple projects
 
 **Encapsulated delegation pattern:**
 
@@ -105,18 +133,26 @@ Extend `mcp.json` to support HTTP transport, not just stdio.
 
 ---
 
-## Channels HTTP Interface <!-- target: next-minor -->
+## Channels Web UI <!-- target: next-major -->
 
-Expose channels via HTTP for visibility from anywhere (over Tailscale VPN).
+Full web interface for channels with attachment support.
 
-**Goal:** Read channel audit trail from any device.
+**Goal:** Rich channel experience accessible from any device.
 
-**Endpoints:**
+**Features:**
+
+- Web UI for browsing channels, threads, and messages
+- Attachment/artifact support (PDFs, images, files)
+- Real-time updates via SSE or WebSocket
+- Mobile-friendly responsive design
+
+**HTTP API (foundation):**
 
 - `GET /channels` - list all channels
 - `GET /channels/:name` - read messages (`?since=`, `?limit=`)
 - `GET /channels/:name/:messageId` - specific message + replies
-- `POST /channels/:name` - publish message (nice-to-have)
+- `POST /channels/:name` - publish message
+- `POST /channels/:name/attachments` - upload attachments
 
 ---
 
@@ -175,26 +211,6 @@ Convert shell test scripts to self-documenting workflows:
 
 ---
 
-## Enhanced Cross-Project Communication <!-- target: backlog -->
-
-Build on existing cross-project routing to improve interactive session support.
-
-**Challenge:** What does reading look like for interactive sessions?
-
-**Potential solution:** Bake into \_base persona prompt that agents should check their DM channel periodically. Works for both headless and interactive sessions.
-
----
-
-## Structured Response Routing <!-- target: backlog -->
-
-Add `upstream` field for structured response routing back to callers.
-
-**Use case:** Orchestration scenarios where a caller needs to receive structured responses from delegated work.
-
-**Status:** Nice-to-have, not blocking current functionality.
-
----
-
 ## CLI Feedback for Channel Publish <!-- target: backlog -->
 
 Improve CLI feedback when publishing to persona DMs.
@@ -204,3 +220,22 @@ Improve CLI feedback when publishing to persona DMs.
 **Potential:** Show confirmation, message ID, or async status indicator.
 
 **Status:** Current behavior is acceptable for MVP.
+
+---
+
+## Port to Bun <!-- target: backlog -->
+
+Consider porting from Node.js to Bun for improved performance and developer experience.
+
+**Potential benefits:**
+
+- Faster startup and execution
+- Built-in TypeScript support without compilation step
+- Simplified tooling (bundler, test runner, package manager)
+- Better performance for daemon and CLI operations
+
+**Considerations:**
+
+- Ecosystem compatibility
+- Deployment complexity
+- Breaking changes for existing users
