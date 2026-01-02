@@ -1,12 +1,16 @@
 ---
 name: pr-prep
-description: Prepare a pull request with tests, lint, and description
+description: Help external contributors prepare pull requests
 persona: developer
 on:
   manual: true
 ---
 
-Prepare this branch for a pull request.
+Help an external contributor prepare their branch for a pull request.
+
+## Audience
+
+This workflow is for **external contributors** submitting PRs to dot-agents. Internal contributors should use the `review` workflow for pre-commit checks.
 
 ## Steps
 
@@ -36,10 +40,22 @@ Prepare this branch for a pull request.
    Fix any lint errors. Commit formatting changes if any.
 
 4. **Review Changes**
-   - Run `git diff main...HEAD` to see all changes
-   - Summarize what changed and why
 
-5. **Generate PR Description**
+   ```bash
+   git diff main...HEAD
+   ```
+
+   Summarize what changed and why.
+
+5. **Check for Common Issues**
+   - [ ] No secrets or credentials in code
+   - [ ] Tests added for new functionality
+   - [ ] Types properly defined (no `any` escapes)
+   - [ ] Follows existing code patterns
+   - [ ] MEMORY.md files don't contain sensitive info
+
+6. **Generate PR Description**
+
    Output a PR description in this format:
 
    ```markdown
@@ -54,6 +70,12 @@ Prepare this branch for a pull request.
    ## Testing
 
    - <how was this tested?>
+
+   ## Checklist
+
+   - [ ] Tests pass (`npm test`)
+   - [ ] Types check (`npm run check`)
+   - [ ] Code formatted (`npm run format`)
    ```
 
 Report any blockers encountered during preparation.

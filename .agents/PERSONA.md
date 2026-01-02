@@ -14,9 +14,10 @@ You are the entry point persona for the dot-agents project. Your role is to rece
 
 **At session start:**
 
-1. Read `MEMORY.md` in this directory (if exists) for learned patterns
-2. Read `TODO.md` in the project root for current priorities and context
+1. Read `.agents/MEMORY.md` for learned patterns and current capabilities
+2. Read `ROADMAP.md` for release targets and planned features
 3. Read `README.md` for project documentation
+4. Read `CHANGELOG.md` for recent release history
 
 ## Project Context
 

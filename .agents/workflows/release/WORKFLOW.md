@@ -1,43 +1,94 @@
 ---
 name: release
-description: Version bump, changelog, and release tag
+description: Bump version, create tag, and finalize release
 persona: developer
 on:
   manual: true
 ---
 
-Prepare a new release of dot-agents.
+Finalize a release by bumping version and creating a tag.
+
+## Prerequisites
+
+**Run `pre-release` workflow first.** This workflow assumes:
+
+- Tests pass
+- Documentation is updated
+- CHANGELOG.md is updated
+- Release review is approved
 
 ## Pre-flight Checks
 
-1. Ensure working directory is clean: `git status`
-2. Ensure on main branch: `git branch --show-current`
-3. Ensure tests pass: `npm test`
-4. Ensure types check: `npm run check`
+1. **Verify clean state**
+
+   ```bash
+   git status  # Should be clean
+   git branch --show-current  # Should be main
+   ```
+
+2. **Verify pre-release completed**
+   - CHANGELOG.md has entry for new version
+   - All preparation commits are in
 
 ## Release Steps
 
-1. **Determine Version Bump**
-   - Check recent commits since last tag: `git log $(git describe --tags --abbrev=0)..HEAD --oneline`
-   - Determine if this is a patch, minor, or major bump based on changes
+### 1. Confirm Version Bump
 
-2. **Bump Version**
+Verify the version bump type from pre-release preparation:
 
-   ```bash
-   npm version <patch|minor|major>
-   ```
+```bash
+# Check current version
+node -p "require('./package.json').version"
 
-   This updates package.json and creates a git tag.
+# Check what will be released
+git log $(git describe --tags --abbrev=0)..HEAD --oneline
+```
 
-3. **Generate Changelog Entry**
-   - Review commits since last tag
-   - Summarize user-facing changes
-   - Output a changelog entry for CHANGELOG.md (if it exists)
+### 2. Bump Version
 
-4. **Report**
-   Output:
-   - New version number
-   - Summary of changes
-   - Next steps (push, publish, etc.)
+```bash
+npm version <patch|minor|major>
+```
 
-Do NOT push or publish. Report what was done and what the human should do next.
+This command:
+
+- Updates `package.json` version
+- Creates a git commit
+- Creates a git tag (vX.Y.Z)
+
+### 3. Verify
+
+```bash
+# Check new version
+node -p "require('./package.json').version"
+
+# Check tag was created
+git tag --list | tail -5
+```
+
+### 4. Report
+
+Output release summary:
+
+```text
+## Release Complete
+
+**Version:** x.y.z
+**Tag:** vx.y.z
+
+### Next Steps (Manual)
+
+1. Push commits and tag:
+   git push origin main
+   git push origin vx.y.z
+
+2. Publish to npm (if applicable):
+   npm publish
+
+3. Create GitHub release (optional):
+   - Go to releases page
+   - Select the new tag
+   - Copy changelog entry as release notes
+```
+
+Do NOT push or publish automatically. Report what was done and let the human decide on distribution.
