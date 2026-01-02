@@ -218,10 +218,10 @@ When delegated work from another project, post updates back to the caller's sess
 ```bash
 # Caller from @docs delegated to you with their SESSION_ID
 # Post back to their session thread:
-npx dot-agents channels publish "@docs#sessions" "Task complete: implemented feature X" --thread $CALLER_SESSION_ID
+npx dot-agents channels publish "#docs/sessions" "Task complete: implemented feature X" --thread $CALLER_SESSION_ID
 
 # The --from flag identifies the sender (auto-populated if configured)
-npx dot-agents channels publish "@docs#sessions" "Blocked: need API credentials" --thread $CALLER_SESSION_ID --from "@this-project"
+npx dot-agents channels publish "#docs/sessions" "Blocked: need API credentials" --thread $CALLER_SESSION_ID --from "@this-project"
 ```
 
 **Delegation prompt pattern:** When receiving delegated work, expect the caller to provide:

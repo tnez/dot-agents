@@ -11,7 +11,7 @@ import type {
 } from "./types/channel.js";
 
 const METADATA_FILE = "_metadata.yaml";
-const MESSAGE_FILE = "message.md";
+const MESSAGE_FILE_LEGACY = "message.md"; // Backwards compatibility
 const LAST_PROCESSED_FILE = "_last_processed.yaml";
 
 /**
@@ -43,6 +43,26 @@ async function isFile(path: string): Promise<boolean> {
  */
 function generateMessageId(): string {
   return new Date().toISOString();
+}
+
+/**
+ * Get the path to the initial message file in a thread directory.
+ * Supports both new format (<threadId>.md) and legacy format (message.md).
+ */
+async function getInitialMessagePath(threadDir: string, threadId: string): Promise<string | null> {
+  // Try new format first: <threadId>.md
+  const newPath = join(threadDir, `${threadId}.md`);
+  if (await isFile(newPath)) {
+    return newPath;
+  }
+
+  // Fall back to legacy format: message.md
+  const legacyPath = join(threadDir, MESSAGE_FILE_LEGACY);
+  if (await isFile(legacyPath)) {
+    return legacyPath;
+  }
+
+  return null;
 }
 
 /**
@@ -147,7 +167,8 @@ export async function publishMessage(
   messageContent = `---\n${stringifyYaml(frontmatter)}---\n\n`;
   messageContent += content + "\n";
 
-  await writeFile(join(messagePath, MESSAGE_FILE), messageContent, "utf-8");
+  // Write initial message with timestamp filename (uniform with replies)
+  await writeFile(join(messagePath, `${messageId}.md`), messageContent, "utf-8");
 
   return messageId;
 }
@@ -176,17 +197,17 @@ export async function readChannel(
     if (entry.name.startsWith("_")) continue;
 
     const messageDir = join(channelPath, entry.name);
-    const messagePath = join(messageDir, MESSAGE_FILE);
+    const threadId_local = entry.name;
 
-    if (!(await isFile(messagePath))) continue;
+    // Find initial message file (new or legacy format)
+    const messagePath = await getInitialMessagePath(messageDir, threadId_local);
+    if (!messagePath) continue;
 
     const messageDate = new Date(entry.name);
     if (since && messageDate < since) continue;
 
     // If filtering by thread, we need to read and check frontmatter first
     if (threadId) {
-      const messagePath = join(messageDir, MESSAGE_FILE);
-      if (!(await isFile(messagePath))) continue;
       try {
         const content = await readFile(messagePath, "utf-8");
         if (content.startsWith("---\n")) {
@@ -217,7 +238,7 @@ export async function readChannel(
         body = content.trim();
       }
 
-      const replies = await readReplies(messageDir);
+      const replies = await readReplies(messageDir, threadId_local);
 
       messages.push({
         id: entry.name,
@@ -240,15 +261,19 @@ export async function readChannel(
 }
 
 /**
- * Read replies for a message
+ * Read replies for a message (excluding the initial message)
  */
-async function readReplies(messageDir: string): Promise<ChannelReply[]> {
+async function readReplies(messageDir: string, threadId: string): Promise<ChannelReply[]> {
   const entries = await readdir(messageDir, { withFileTypes: true });
   const replies: ChannelReply[] = [];
 
+  // Files to skip: legacy message.md and the initial message (<threadId>.md)
+  const initialMessageFile = `${threadId}.md`;
+
   for (const entry of entries) {
     if (!entry.isFile()) continue;
-    if (entry.name === MESSAGE_FILE) continue;
+    if (entry.name === MESSAGE_FILE_LEGACY) continue; // Skip legacy initial
+    if (entry.name === initialMessageFile) continue;  // Skip new-format initial
     if (!entry.name.endsWith(".md")) continue;
 
     const replyId = entry.name.replace(/\.md$/, "");
@@ -433,9 +458,11 @@ export async function getPendingMessages(
     if (lastProcessed && messageDate <= lastProcessed) continue;
 
     const messageDir = join(channelPath, entry.name);
-    const messagePath = join(messageDir, MESSAGE_FILE);
+    const threadId = entry.name;
 
-    if (!(await isFile(messagePath))) continue;
+    // Find initial message file (new or legacy format)
+    const messagePath = await getInitialMessagePath(messageDir, threadId);
+    if (!messagePath) continue;
 
     try {
       const content = await readFile(messagePath, "utf-8");
@@ -491,4 +518,57 @@ export async function listDMChannels(
   }
 
   return dmChannels.sort();
+}
+
+/**
+ * Get the workspace directory path for a thread.
+ * The workspace is a directory within the thread for working files.
+ *
+ * @param channelsDir - Base channels directory
+ * @param channelName - Channel name (e.g., "#sessions")
+ * @param threadId - Thread ID (ISO timestamp)
+ * @param create - If true, creates the workspace directory if it doesn't exist
+ * @returns Path to the workspace directory, or null if thread doesn't exist
+ */
+export async function getThreadWorkspace(
+  channelsDir: string,
+  channelName: string,
+  threadId: string,
+  create: boolean = false
+): Promise<string | null> {
+  const threadDir = join(channelsDir, channelName, threadId);
+
+  if (!(await isDirectory(threadDir))) {
+    return null;
+  }
+
+  const workspacePath = join(threadDir, "workspace");
+
+  if (create) {
+    await mkdir(workspacePath, { recursive: true });
+  }
+
+  return workspacePath;
+}
+
+/**
+ * Get the thread directory path.
+ *
+ * @param channelsDir - Base channels directory
+ * @param channelName - Channel name (e.g., "#sessions")
+ * @param threadId - Thread ID (ISO timestamp)
+ * @returns Path to the thread directory, or null if it doesn't exist
+ */
+export async function getThreadPath(
+  channelsDir: string,
+  channelName: string,
+  threadId: string
+): Promise<string | null> {
+  const threadDir = join(channelsDir, channelName, threadId);
+
+  if (!(await isDirectory(threadDir))) {
+    return null;
+  }
+
+  return threadDir;
 }

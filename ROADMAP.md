@@ -388,18 +388,18 @@ Support cross-project channel syntax for delegation callbacks.
 
 ```bash
 # Delegate posts back to caller's session thread
-npx dot-agents channels publish "@docs#sessions" "Status update..." --thread $SESSION_ID --from "@dot-agents"
+npx dot-agents channels publish "#docs/sessions" "Status update..." --thread $SESSION_ID --from "@dot-agents"
 ```
 
 **Components:**
 
-1. **Cross-project channel syntax** - `@project#channel` to publish to another project's channel
+1. **Cross-project channel syntax** - `#project/channel` to publish to another project's channel (ALREADY WORKING)
 2. **`--from` flag** - Identify sender (ideally auto-populated from current project/persona)
 3. **Caller passes session context** - Delegation prompt includes `$SESSION_ID` and project identifier
 
 **Implementation:**
 
-- Extend channel address parsing to support `@project#channel`
+- ~~Extend channel address parsing to support `#project/channel`~~ (DONE)
 - Auto-populate `--from` based on registered project identity
 - Document pattern in \_base persona for cross-project delegations
 - Add end-to-end spec: delegation → work → callback → caller reads update
@@ -432,7 +432,7 @@ npx dot-agents channels publish "@docs#sessions" "Status update..." --thread $SE
    → Reads channel.ts, writes tests, runs them
 
 5. @dot-agents/developer posts callback
-   → npx dot-agents channels publish "@docs#sessions" \
+   → npx dot-agents channels publish "#docs/sessions" \
        "Task complete: added 12 channel tests, all passing" \
        --thread $CALLER_SESSION_ID --from "@dot-agents"
 
@@ -443,11 +443,11 @@ npx dot-agents channels publish "@docs#sessions" "Status update..." --thread $SE
 
 **Assertions:**
 
-- [ ] `@project` routing resolves to registered project path
-- [ ] `@project#channel` publishes to that project's channel
+- [x] `@project` routing resolves to registered project path (routes to `@root`)
+- [x] `#project/channel` publishes to that project's channel
 - [ ] Callback tags are parsed and passed to invoked persona
-- [ ] `--from` identifies sender project
-- [ ] Caller can read callback in their session thread
+- [x] `--from` identifies sender project
+- [x] Caller can read callback in their session thread
 
 **Discovered:** 2026-01-02 - This exact flow failed because tmux+claude workaround bypassed the channels mechanism.
 

@@ -12,10 +12,13 @@ import {
   resolvePersona,
   expandVariables,
   createExecutionContext,
-  createSession,
+  // Legacy session support (for --session-id backwards compatibility)
   readSession,
-  finalizeSession,
   type Session,
+  // New session-as-thread support
+  startSession,
+  endSession,
+  type SessionThread,
 } from "../../lib/index.js";
 import type { McpConfig } from "../../lib/types/persona.js";
 
@@ -193,38 +196,39 @@ personasCommand
       // Determine working directory
       const workingDir = options.workingDir ?? process.cwd();
 
-      // Handle session: resume existing or create new
-      let session: Session;
+      // Handle session: resume legacy session or create new thread-based session
+      let legacySession: Session | null = null;
+      let sessionThread: SessionThread | null = null;
+      let sessionId: string;
+      let workspacePath: string;
+
       if (options.sessionId) {
-        // Resume existing session
-        const existing = await readSession(config.sessionsDir, options.sessionId);
-        if (!existing) {
+        // Try to resume existing legacy session (backwards compatibility)
+        legacySession = await readSession(config.sessionsDir, options.sessionId);
+        if (!legacySession) {
+          // TODO: In future, also check #sessions channel for thread-based sessions
           console.error(chalk.red(`Session not found: ${options.sessionId}`));
           process.exit(1);
         }
-        session = existing;
+        sessionId = legacySession.id;
+        workspacePath = legacySession.path;
         if (options.verbose) {
-          console.log(chalk.dim(`Resuming session: ${session.id}`));
+          console.log(chalk.dim(`Resuming legacy session: ${sessionId}`));
         }
       } else {
-        // Create new session
-        session = await createSession({
-          sessionsDir: config.sessionsDir,
-          runtime: {
-            hostname: hostname(),
-            executionMode: interactive ? "interactive" : "headless",
-            triggerType: "manual",
-            workingDir,
-          },
+        // Create new thread-based session
+        sessionThread = await startSession({
+          channelsDir: config.channelsDir,
+          persona: persona.name,
+          mode: interactive ? "interactive" : "headless",
+          trigger: "manual",
+          goal: options.prompt ? `${options.prompt.substring(0, 100)}...` : undefined,
           upstream: options.upstream,
-          goal: options.prompt ? `Run ${persona.name}: ${options.prompt.substring(0, 50)}...` : `Run ${persona.name}`,
-          persona: {
-            name: persona.name,
-            inheritanceChain: persona.inheritanceChain,
-          },
         });
+        sessionId = sessionThread.id;
+        workspacePath = sessionThread.workspacePath;
         if (options.verbose) {
-          console.log(chalk.dim(`Created session: ${session.id}`));
+          console.log(chalk.dim(`Created session thread: ${sessionId}`));
         }
       }
 
@@ -232,8 +236,9 @@ personasCommand
       const context = createExecutionContext({
         PERSONA_NAME: persona.name,
         PERSONA_DIR: persona.path,
-        SESSION_DIR: session.path,
-        SESSION_ID: session.id,
+        SESSION_ID: sessionId,
+        SESSION_THREAD_ID: sessionId, // Alias for clarity
+        SESSION_WORKSPACE: workspacePath,
       });
 
       // Build environment
@@ -241,8 +246,9 @@ personasCommand
         ...process.env,
         ...persona.env,
         DOT_AGENTS_PERSONA: persona.path,
-        DOT_AGENTS_SESSION_DIR: session.path,
-        DOT_AGENTS_SESSION_ID: session.id,
+        DOT_AGENTS_SESSION_ID: sessionId,
+        DOT_AGENTS_SESSION_THREAD_ID: sessionId,
+        DOT_AGENTS_SESSION_WORKSPACE: workspacePath,
       } as Record<string, string>;
 
       // Expand environment variable values
@@ -286,14 +292,14 @@ personasCommand
         promptParts.push(persona.prompt);
       }
 
-      // Include session context when resuming
-      if (options.sessionId && session.content) {
+      // Include session context when resuming legacy session
+      if (legacySession?.content) {
         if (promptParts.length > 0) {
           promptParts.push("\n---\n");
         }
         promptParts.push("# Previous Session Context\n");
         promptParts.push("You are resuming a previous session. Here is the context from that session:\n");
-        promptParts.push(session.content);
+        promptParts.push(legacySession.content);
       }
 
       if (options.prompt) {
@@ -342,8 +348,8 @@ personasCommand
           if (interactive) {
             // Interactive mode: pass full prompt as CLI argument, inherit stdio
             // Show session info before starting
-            console.log(chalk.dim(`Session: ${session.id}`));
-            console.log(chalk.dim(`Session dir: ${session.path}`));
+            console.log(chalk.dim(`Session: ${sessionId}`));
+            console.log(chalk.dim(`Workspace: ${workspacePath}`));
             console.log();
 
             const execArgs = fullPrompt ? [...args, fullPrompt] : args;
@@ -403,15 +409,13 @@ personasCommand
       const endedAt = new Date();
       const duration = endedAt.getTime() - startedAt.getTime();
 
-      // Finalize session for headless mode (interactive sessions are managed by the user)
-      if (!interactive) {
-        await finalizeSession(session, {
+      // Finalize session for headless mode (interactive sessions are managed by the user/persona)
+      if (!interactive && sessionThread) {
+        await endSession(sessionThread, {
           success,
           exitCode,
           duration,
           error: lastError?.message,
-          stdout,
-          stderr,
         });
       }
 
@@ -423,11 +427,8 @@ personasCommand
       // Show session info after interactive session ends
       if (interactive) {
         console.log();
-        console.log(chalk.dim(`Session ended: ${session.id}`));
-        const resumeCmd = name
-          ? `npx dot-agents personas run ${name} --session-id ${session.id}`
-          : `npx dot-agents personas run --session-id ${session.id}`;
-        console.log(chalk.dim(`To resume: ${resumeCmd}`));
+        console.log(chalk.dim(`Session ended: ${sessionId}`));
+        console.log(chalk.dim(`Thread: #sessions/${sessionId}`));
       }
     } catch (error) {
       console.error(chalk.red(`Error: ${(error as Error).message}`));
