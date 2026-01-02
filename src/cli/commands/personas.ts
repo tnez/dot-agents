@@ -253,6 +253,8 @@ personasCommand
       });
 
       // Build environment
+      // Note: We set both prefixed (DOT_AGENTS_*) and unprefixed versions
+      // The unprefixed versions match what _base persona documents ($SESSION_ID, etc.)
       const env: Record<string, string> = {
         ...process.env,
         ...persona.env,
@@ -260,6 +262,10 @@ personasCommand
         DOT_AGENTS_SESSION_ID: sessionId,
         DOT_AGENTS_SESSION_THREAD_ID: sessionId,
         DOT_AGENTS_SESSION_WORKSPACE: workspacePath,
+        // Unprefixed versions for persona use (matches _base documentation)
+        SESSION_ID: sessionId,
+        SESSION_THREAD_ID: sessionId,
+        SESSION_WORKSPACE: workspacePath,
         FROM_ADDRESS: fromAddress,
       } as Record<string, string>;
 

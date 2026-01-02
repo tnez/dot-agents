@@ -80,11 +80,18 @@ export async function invokePersona(
   });
 
   // Merge environment
+  // Include FROM_ADDRESS, FROM_CHANNEL, FROM_THREAD from context if provided
   const env: Record<string, string> = {
     ...process.env,
     ...persona.env,
     DOT_AGENTS_PERSONA: persona.name,
     DOT_AGENTS_INVOCATION: "dm",
+    // Pass session env vars from legacy session
+    SESSION_DIR: session.path,
+    // Pass callback routing from context (for cross-project delegation)
+    ...(extraContext.FROM_ADDRESS && { FROM_ADDRESS: extraContext.FROM_ADDRESS }),
+    ...(extraContext.FROM_CHANNEL && { FROM_CHANNEL: extraContext.FROM_CHANNEL }),
+    ...(extraContext.FROM_THREAD && { FROM_THREAD: extraContext.FROM_THREAD }),
   } as Record<string, string>;
 
   for (const [key, value] of Object.entries(env)) {
