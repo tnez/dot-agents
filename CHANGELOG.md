@@ -7,18 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-01-03
+
 ### Added
 
+- **Sessions as threads** - Sessions are now threads in `#sessions` channel instead of separate directories
+  - `SESSION_ID` and `SESSION_THREAD_ID` env vars expose thread ID
+  - `SESSION_WORKSPACE` provides scratch directory for session files
+  - Auto-publishes session start/end messages to thread
+  - Cross-machine coordination via file sync
+
+- **Environment discovery** - Auto-inject available resources into persona prompts
+  - Shows project name, registration status, and daemon status
+  - Lists available personas with descriptions
+  - Lists available workflows with descriptions
+  - Lists available channels
+  - Shows other registered projects with daemon status
+
+- **`channels process` command** - One-shot DM processing without daemon
+  - Process pending messages for a specific channel or all DM channels
+  - Useful for projects that don't need always-on daemon
+
+- **Unified @name address resolution** - Smart routing for channel addresses
+  - `@name` checks registered projects first, then local personas
+  - Enables natural `@project` delegation syntax
+  - Projects take priority over local personas with same name
+
+- **Cross-project delegation callbacks** - `FROM_ADDRESS` env var for reply routing
+  - Automatically set when processing delegated tasks
+  - Parsed into `FROM_CHANNEL` and `FROM_THREAD` for convenience
+  - Enables delegates to post updates back to caller's session
+
+- **Embedded thread ID in channel address** - Support `channel:threadId` syntax
+  - `#project/sessions:threadId` routes to specific thread
+  - Simplifies callback routing in delegations
+
+- **Daemon status display** - Show running/stopped status for daemons
+  - `projects list` shows daemon status for each project
+  - Environment context shows daemon status for current and other projects
+
+- **Root persona support** - `.agents/PERSONA.md` as implicit entry point
 - **Formal ROADMAP.md** - Versioned release targets (next-minor, next-major, backlog)
 - **Cross-project channel routing** - `@project/persona` and `#project/channel` syntax
-- **Project registry** - `npx dot-agents registry add|remove|list` for cross-project routing
-- **Session context injection** - `--session-id` now loads and injects session content
+- **Project registry** - `npx dot-agents projects add|remove|list` for cross-project routing
 - **Activity-based checkpointing** - Provider-agnostic 5-min inactivity reminder
-- **Root persona support** - `.agents/PERSONA.md` as implicit entry point
 - **Workflow structure** - review, pre-release, release, pr-prep, dev-setup workflows
-- **MEMORY.md sensitivity check** - Reviewer persona checks for sensitive content
 - **`channels/list` skill** - Added to internal skills
-- **Session/Channel documentation** - Mental model, Channels, and Sessions sections in README; unified framing in \_base persona
 
 ### Changed
 
@@ -32,6 +66,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Claude-specific exit hooks** - Violated provider-agnostic principle (reverted)
 - **Duplicate skills** - `skills/channels/` removed (canonical is `internal/skills/`)
 - **`skills/documents/`** - Moved to documents project where it belongs
+- **Session directories** - Replaced by sessions-as-threads model (legacy still readable)
 
 ## [0.5.0] - 2025-12-16
 
