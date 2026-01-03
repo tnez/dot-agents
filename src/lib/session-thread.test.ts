@@ -104,6 +104,7 @@ describe("session-thread", () => {
         trigger: "manual",
       });
 
+      await tick(); // Ensure reply gets unique timestamp from session start
       await updateSession(session, "First update");
       await tick();
       await updateSession(session, "Second update");
@@ -121,6 +122,7 @@ describe("session-thread", () => {
         trigger: "manual",
       });
 
+      await tick(); // Ensure reply gets unique timestamp from session start
       await updateSession(session.id, channelsDir, "Update via ID");
 
       const messages = await readChannel(channelsDir, "#sessions");
