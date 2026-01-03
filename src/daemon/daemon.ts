@@ -14,6 +14,8 @@ import {
   getPackageInfo,
   getRecentSessions as getRecentSessionsFromLib,
   type SessionInfo as LibSessionInfo,
+  writePidFile,
+  removePidFile,
 } from "../lib/index.js";
 import { Scheduler, type ScheduledJob } from "./lib/scheduler.js";
 import { Executor } from "./lib/executor.js";
@@ -143,6 +145,9 @@ export class Daemon {
     this.apiServer = await startApiServer(this.app, this.port);
     console.log(`[${new Date().toISOString()}] API listening on http://localhost:${this.port}`);
 
+    // Write PID file
+    await writePidFile(this.config.agentsDir, process.pid);
+
     this.running = true;
     console.log(`[${new Date().toISOString()}] Daemon ready`);
   }
@@ -168,6 +173,11 @@ export class Daemon {
       await new Promise<void>((resolve) => {
         this.apiServer!.close(() => resolve());
       });
+    }
+
+    // Remove PID file
+    if (this.config) {
+      await removePidFile(this.config.agentsDir);
     }
 
     this.running = false;

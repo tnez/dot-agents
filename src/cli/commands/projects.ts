@@ -8,6 +8,7 @@ import {
   unregisterProject,
   listProjects,
   getRegistryPath,
+  getDaemonStatus,
 } from "../../lib/index.js";
 
 /**
@@ -126,8 +127,21 @@ projectsCommand
 
       console.log(chalk.blue(`Registered projects (${projects.length}):\n`));
 
+      // Calculate max name length for alignment
+      const maxNameLength = Math.max(...projects.map((p) => p.name.length));
+
       for (const { name, path } of projects) {
-        console.log(chalk.white(`  ${name}`));
+        const daemonStatus = await getDaemonStatus(path);
+        const padding = " ".repeat(maxNameLength - name.length + 2);
+
+        let statusStr: string;
+        if (daemonStatus.running) {
+          statusStr = chalk.green(`● running (pid ${daemonStatus.pid})`);
+        } else {
+          statusStr = chalk.dim("○ stopped");
+        }
+
+        console.log(chalk.white(`  ${name}`) + padding + statusStr);
         console.log(chalk.dim(`    ${path}`));
         console.log();
       }

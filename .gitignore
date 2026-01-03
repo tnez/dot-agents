@@ -57,6 +57,7 @@ sessions/**/*.json
 
 # Local agent runtime data
 .agents/sessions/
+.agents/daemon.pid
 
 # Channel messages (but keep metadata)
 .agents/channels/**/*/
