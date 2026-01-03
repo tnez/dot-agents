@@ -2,7 +2,7 @@ import { join, relative } from "node:path";
 import { listPersonas, loadPersona, loadRootPersona } from "./persona.js";
 import { listWorkflows, loadWorkflow } from "./workflow.js";
 import { listChannels } from "./channel.js";
-import { getProjectNameByPath } from "./registry.js";
+import { getProjectNameByPath, listProjects } from "./registry.js";
 import { getDaemonStatus } from "./daemon-status.js";
 import type { DotAgentsConfig } from "./types/index.js";
 
@@ -40,12 +40,23 @@ interface ChannelInfo {
 }
 
 /**
+ * Registered project info for environment context
+ */
+interface RegisteredProjectInfo {
+  name: string;
+  path: string;
+  daemonRunning: boolean;
+  daemonPid?: number;
+}
+
+/**
  * Environment context data
  */
 export interface EnvironmentContext {
   projectName: string | null;
   daemonRunning: boolean;
   daemonPid?: number;
+  registeredProjects: RegisteredProjectInfo[];
   personas: PersonaInfo[];
   workflows: WorkflowInfo[];
   channels: ChannelInfo[];
@@ -56,9 +67,10 @@ export interface EnvironmentContext {
  *
  * This function:
  * 1. Gets current project info from registry
- * 2. Lists personas (name + description)
- * 3. Lists workflows (name + description)
- * 4. Lists channels
+ * 2. Lists all registered projects with daemon status
+ * 3. Lists personas (name + description)
+ * 4. Lists workflows (name + description)
+ * 5. Lists channels
  */
 export async function buildEnvironmentContext(
   config: DotAgentsConfig
@@ -66,8 +78,22 @@ export async function buildEnvironmentContext(
   // Get project name from registry
   const projectName = await getProjectNameByPath(config.agentsDir);
 
-  // Get daemon status
+  // Get daemon status for current project
   const daemonStatus = await getDaemonStatus(config.agentsDir);
+
+  // Get all registered projects with daemon status
+  const allProjects = await listProjects();
+  const registeredProjects: RegisteredProjectInfo[] = await Promise.all(
+    allProjects.map(async (project) => {
+      const projectDaemonStatus = await getDaemonStatus(project.path);
+      return {
+        name: project.name,
+        path: project.path,
+        daemonRunning: projectDaemonStatus.running,
+        daemonPid: projectDaemonStatus.pid,
+      };
+    })
+  );
 
   // List personas
   const personaPaths = await listPersonas(config.personasDir);
@@ -125,6 +151,7 @@ export async function buildEnvironmentContext(
     projectName,
     daemonRunning: daemonStatus.running,
     daemonPid: daemonStatus.pid,
+    registeredProjects,
     personas,
     workflows,
     channels,
@@ -184,7 +211,7 @@ function formatList<T extends { name: string; description?: string }>(
  * ```markdown
  * ## Your Environment
  *
- * **Project:** docs (registered as @docs)
+ * **Project:** docs (registered as @docs) ○ daemon stopped
  *
  * **Personas:** (3)
  * - dottie - Executive assistant
@@ -196,7 +223,11 @@ function formatList<T extends { name: string; description?: string }>(
  * - daily-review - Review daily sessions
  *
  * **Channels:** (4)
- * - #sessions, #issues, #journals, @human
+ * #sessions, #issues, #journals, @human
+ *
+ * **Other Registered Projects:** (2)
+ * - @dot-agents ○ daemon stopped
+ * - @scoutos ● daemon running (pid 12345)
  * ```
  */
 export function formatEnvironmentContext(context: EnvironmentContext): string {
@@ -236,6 +267,21 @@ export function formatEnvironmentContext(context: EnvironmentContext): string {
     lines.push(context.channels.map((c) => c.name).join(", "));
   } else {
     lines.push(formatList(context.channels, "channels"));
+  }
+  lines.push("");
+
+  // Registered projects (other projects you can communicate with)
+  const otherProjects = context.registeredProjects.filter(
+    (p) => p.name !== context.projectName
+  );
+  if (otherProjects.length > 0) {
+    lines.push(`**Other Registered Projects:** (${otherProjects.length})`);
+    for (const project of otherProjects) {
+      const daemonStatus = project.daemonRunning
+        ? `● daemon running${project.daemonPid ? ` (pid ${project.daemonPid})` : ""}`
+        : "○ daemon stopped";
+      lines.push(`- @${project.name} ${daemonStatus}`);
+    }
   }
 
   return lines.join("\n");
