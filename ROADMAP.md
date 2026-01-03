@@ -354,6 +354,29 @@ npx dot-agents channels process @dev   # Specific channel
 
 ---
 
+## Thread Ownership for Active Conversations <!-- target: backlog -->
+
+When processing a DM thread, the processor should "own" the thread and monitor for new messages.
+
+**Current behavior:**
+
+- `channels process` reads root message only, ignores replies
+- If caller posts addendum mid-processing, it's not seen
+- Addendum becomes orphaned (processed in next run, out of context)
+
+**Proposed behavior:**
+
+1. Processor "claims" thread on start (PID file or registry)
+2. Before completing, processor checks for new messages in thread
+3. If new messages exist, include them and continue
+4. If another process tries to claim an active thread, it waits or skips
+
+**Workaround for now:** Post complete tasks upfront, don't use thread replies for addendums during processing.
+
+**Discovered:** 2026-01-03 during delegation dogfooding.
+
+---
+
 ## Port Test Scripts to Workflows <!-- target: backlog -->
 
 Convert shell test scripts to self-documenting workflows:
