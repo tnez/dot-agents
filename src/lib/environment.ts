@@ -3,6 +3,7 @@ import { listPersonas, loadPersona, loadRootPersona } from "./persona.js";
 import { listWorkflows, loadWorkflow } from "./workflow.js";
 import { listChannels } from "./channel.js";
 import { getProjectNameByPath } from "./registry.js";
+import { getDaemonStatus } from "./daemon-status.js";
 import type { DotAgentsConfig } from "./types/index.js";
 
 /**
@@ -43,6 +44,8 @@ interface ChannelInfo {
  */
 export interface EnvironmentContext {
   projectName: string | null;
+  daemonRunning: boolean;
+  daemonPid?: number;
   personas: PersonaInfo[];
   workflows: WorkflowInfo[];
   channels: ChannelInfo[];
@@ -62,6 +65,9 @@ export async function buildEnvironmentContext(
 ): Promise<EnvironmentContext> {
   // Get project name from registry
   const projectName = await getProjectNameByPath(config.agentsDir);
+
+  // Get daemon status
+  const daemonStatus = await getDaemonStatus(config.agentsDir);
 
   // List personas
   const personaPaths = await listPersonas(config.personasDir);
@@ -117,6 +123,8 @@ export async function buildEnvironmentContext(
 
   return {
     projectName,
+    daemonRunning: daemonStatus.running,
+    daemonPid: daemonStatus.pid,
     personas,
     workflows,
     channels,
@@ -197,11 +205,15 @@ export function formatEnvironmentContext(context: EnvironmentContext): string {
   lines.push("## Your Environment");
   lines.push("");
 
-  // Project info
+  // Project info with daemon status
+  const daemonIndicator = context.daemonRunning
+    ? `● daemon running${context.daemonPid ? ` (pid ${context.daemonPid})` : ""}`
+    : "○ daemon stopped";
+
   if (context.projectName) {
-    lines.push(`**Project:** ${context.projectName} (registered as @${context.projectName})`);
+    lines.push(`**Project:** ${context.projectName} (registered as @${context.projectName}) ${daemonIndicator}`);
   } else {
-    lines.push("**Project:** (not registered)");
+    lines.push(`**Project:** (not registered) ${daemonIndicator}`);
   }
   lines.push("");
 
