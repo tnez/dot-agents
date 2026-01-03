@@ -26,13 +26,23 @@ Canonical location for built-in skills is `internal/skills/`. The `skills/` dire
 - `skills/examples/` - example skills for users
 - `skills/meta/` - meta-skills (skill-creator, skill-tester, etc.)
 
-### Session Logging
+### Sessions as Threads
 
-Sessions are directories created at START: `sessions/YYYY-MM-DDTHH-MM-SS/session.md`
+Sessions are threads in the `#sessions` channel, not separate directories.
 
-- `SESSION_DIR` and `SESSION_ID` env vars exposed to agents
-- `--session-id` flag for resuming sessions
-- Resume hint shown after session ends
+**Env vars exposed to agents:**
+
+- `SESSION_ID` / `SESSION_THREAD_ID` - Thread ID in `#sessions`
+- `SESSION_WORKSPACE` - Scratch directory for session files
+- `FROM_ADDRESS` - Full callback address (e.g., `#project/sessions:thread-id`)
+
+**Pattern:** Post updates to session thread for observability:
+
+```bash
+npx dot-agents channels publish "#sessions" "Status update" --thread $SESSION_ID
+```
+
+**Legacy:** Old `.agents/sessions/` directories still readable for backward compatibility.
 
 ---
 
@@ -40,10 +50,13 @@ Sessions are directories created at START: `sessions/YYYY-MM-DDTHH-MM-SS/session
 
 - **`npx dot-agents personas run <name>`** - Direct persona invocation with session creation
 - **Root persona pattern** - `.agents/PERSONA.md` is implicit entry point
-- **Sessions** - All execution paths create sessions (manual, cron, DM, channel-triggered)
+- **Sessions as threads** - Sessions are threads in `#sessions` channel
+- **Environment discovery** - Agents automatically see available personas, workflows, channels at startup
 - **Channels** - File-based messaging (`@persona` DMs, `#public` channels)
+- **`channels process`** - One-shot processing for DM channels without daemon
 - **Daemon** - Watches channels, invokes personas on DM, triggers workflows
-- **Cross-project routing** - `@project/persona` and `#project/channel` syntax
+- **Cross-project routing** - `@project` routes to entry point, `#project/channel` for public channels
+- **Delegation callbacks** - `FROM_ADDRESS` env var enables reply-to-caller pattern
 - **Activity checkpointing** - Reminds agent to write session summary after 5min inactivity
 
 ---
@@ -54,4 +67,4 @@ Sessions are directories created at START: `sessions/YYYY-MM-DDTHH-MM-SS/session
 
 ---
 
-Last updated: 2026-01-02
+Last updated: 2026-01-03
