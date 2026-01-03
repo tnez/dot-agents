@@ -14,6 +14,7 @@ export * from "./session.js";
 export * from "./session-thread.js";
 export * from "./invoke.js";
 export * from "./processor.js";
+export * from "./environment.js";
 
 // Validation
 export * from "./validation/index.js";

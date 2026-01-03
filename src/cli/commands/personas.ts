@@ -21,6 +21,8 @@ import {
   type SessionThread,
   // Project registry for FROM_ADDRESS
   getProjectNameByPath,
+  // Environment discovery
+  getEnvironmentContextMarkdown,
 } from "../../lib/index.js";
 import type { McpConfig } from "../../lib/types/persona.js";
 
@@ -304,11 +306,18 @@ personasCommand
         }
       }
 
-      // Build the full prompt (system prompt + session context + user prompt)
+      // Build the full prompt (system prompt + environment + session context + user prompt)
       const promptParts: string[] = [];
       if (persona.prompt) {
         promptParts.push(persona.prompt);
       }
+
+      // Inject environment discovery context
+      const environmentContext = await getEnvironmentContextMarkdown(config);
+      if (promptParts.length > 0) {
+        promptParts.push("\n---\n");
+      }
+      promptParts.push(environmentContext);
 
       // Include session context when resuming legacy session
       if (legacySession?.content) {

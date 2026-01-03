@@ -11,6 +11,7 @@ import {
   createSession,
   finalizeSession,
 } from "./index.js";
+import { getEnvironmentContextMarkdown } from "./environment.js";
 
 /**
  * Options for invoking a persona directly
@@ -104,13 +105,19 @@ export async function invokePersona(
     }
   }
 
-  // Build prompt: persona prompt + message
+  // Build prompt: persona prompt + environment context + message
   const parts: string[] = [];
   if (persona.prompt) {
     const expandedPrompt = processTemplate(persona.prompt, context, persona.env);
     parts.push(expandedPrompt);
     parts.push("\n---\n");
   }
+
+  // Inject environment discovery context
+  const environmentContext = await getEnvironmentContextMarkdown(config);
+  parts.push(environmentContext);
+  parts.push("\n---\n");
+
   parts.push(`You received a direct message:\n\n${message}`);
   const prompt = parts.join("\n");
 
