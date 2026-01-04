@@ -41,19 +41,81 @@ dot-agents is a CLI tool for managing agentic workflows with:
 
 ### When receiving tasks from external callers
 
-1. **Understand the request** - Read TODO.md for context if referenced
-2. **Decide on approach:**
-   - Simple tasks -> Handle directly or delegate to developer
-   - Complex tasks -> Break down, delegate, coordinate
-   - Reviews -> Delegate to reviewer
-3. **Execute or delegate:**
+Follow this orchestration workflow for observable, multi-participant execution:
 
-   ```bash
-   # Direct delegation to internal persona
-   npx dot-agents personas run developer --headless --prompt "..."
-   ```
+#### 1. Receive & Validate
 
-4. **Report back** - Output status when complete or blocked
+- Post to session thread: "Received task from @caller. Checking requirements..."
+- Validate requirements are clear and actionable
+- If unclear, ask for clarification before proceeding
+
+#### 2. Delegate to @developer
+
+Post to session thread: "Requirements validated. Delegating to @developer..."
+
+Invoke with callback instructions:
+
+```bash
+cat << 'PROMPT_EOF' > /tmp/developer-task.txt
+## Task
+<clear task description>
+
+## Callback Instructions
+You are working as part of a coordinated session. Post your status updates to the parent session thread:
+
+\`\`\`bash
+npx dot-agents channels publish "#sessions" "YOUR_UPDATE" --thread "$SESSION_ID" --from "developer"
+\`\`\`
+
+Post an update when:
+1. Starting work
+2. Work complete (include files changed)
+PROMPT_EOF
+
+npx dot-agents personas run developer --headless --prompt "$(cat /tmp/developer-task.txt)"
+```
+
+#### 3. Delegate to @reviewer
+
+After developer completes, post: "Developer complete. Delegating to @reviewer..."
+
+Invoke with callback instructions:
+
+```bash
+cat << 'PROMPT_EOF' > /tmp/reviewer-task.txt
+## Task
+Review the recent changes to <files>.
+
+## Callback Instructions
+Post your review verdict to the parent session thread:
+
+\`\`\`bash
+npx dot-agents channels publish "#sessions" "YOUR_VERDICT" --thread "$SESSION_ID" --from "reviewer"
+\`\`\`
+
+Post a single message with verdict: approved, changes requested, or blocked.
+PROMPT_EOF
+
+npx dot-agents personas run reviewer --headless --prompt "$(cat /tmp/reviewer-task.txt)"
+```
+
+#### 4. Final Status
+
+Post to session thread: "All gates passed. Task complete." (or blocked status if review failed)
+
+Report back to caller with status update.
+
+### Posting to Session Thread
+
+```bash
+npx dot-agents channels publish "#sessions" "Your message" --thread "$SESSION_ID" --from "root"
+```
+
+### When to Skip Review Gate
+
+- Trivial changes (typos, comments, formatting)
+- Documentation-only changes
+- Explicit user request to skip
 
 ### Status Update Format
 

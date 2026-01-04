@@ -44,6 +44,56 @@ npx dot-agents channels publish "#sessions" "Status update" --thread $SESSION_ID
 
 **Legacy:** Old `.agents/sessions/` directories still readable for backward compatibility.
 
+### Multi-Participant Session Threads
+
+**Validated:** 2026-01-04 - Multiple personas can post to a single session thread for observable orchestration.
+
+**The pattern:** When root delegates to internal personas (@developer, @reviewer), pass callback instructions in the prompt so they post to root's session thread instead of creating their own.
+
+**How it works:**
+
+1. Root starts session, has `$SESSION_ID`
+2. Root posts "delegating to @developer" to its thread
+3. Root invokes developer with callback instructions embedded in prompt
+4. Developer posts updates to root's thread (via callback instructions)
+5. Developer completes, root continues to reviewer
+6. Same pattern for reviewer
+7. Single thread shows full audit trail with multiple participants
+
+**Callback instructions template:**
+
+```markdown
+## Callback Instructions
+
+You are working as part of a coordinated session. Post your status updates to the parent session thread:
+
+\`\`\`bash
+npx dot-agents channels publish "#sessions" "YOUR_UPDATE" --thread "<SESSION_ID>" --from "<persona-name>"
+\`\`\`
+
+Post an update when:
+
+1. Starting work
+2. Work complete (include files changed)
+   \`\`\`
+```
+
+**Result:** Observable session thread like:
+
+```text
+├── root: "Received task. Checking requirements..."
+├── root: "Requirements validated. Delegating to @developer"
+├── developer: "Starting work..."
+├── developer: "Work complete. Files changed: X, Y, Z"
+├── root: "Delegating to @reviewer for review"
+├── reviewer: "Review complete ✓ Verdict: approved"
+├── root: "All gates passed. Task complete."
+```
+
+**Limitation:** This is prompt-based until a `--callback` flag is added to `personas run`. Internal personas still create their own sessions (wasted), but post to parent thread.
+
+**Future:** Add `--callback "#sessions:$SESSION_ID"` flag that sets `CALLBACK_ADDRESS` env var and suppresses child session creation.
+
 ---
 
 ## Current Capabilities (MVD)
