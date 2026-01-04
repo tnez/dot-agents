@@ -389,6 +389,58 @@ Convert shell test scripts to self-documenting workflows:
 
 ---
 
+## Delegation DX Improvements <!-- target: next-minor -->
+
+Improve developer experience for cross-project delegation based on dogfooding feedback.
+
+**Discovered:** 2026-01-04 from @docs/dottie delegation dogfooding.
+
+### 1. Warn on publish to stopped daemon
+
+When publishing to `@project`, warn if target daemon is stopped:
+
+```text
+Published to @dot-agents → dot-agents@root
+  Message ID: 2026-01-04T20:14:52.392Z
+  ⚠️  dot-agents daemon is stopped. Run `channels process` to handle.
+```
+
+**Implementation:** Check daemon status during publish, add warning to output.
+
+### 2. Add `--mode` flag to `channels process`
+
+Allow specifying execution mode from CLI:
+
+```bash
+npx dot-agents channels process @root --mode headless
+npx dot-agents channels process @root --mode interactive
+```
+
+**Current:** No way to control this from CLI - defaults to headless.
+
+### 3. Processing progress indicator
+
+Show elapsed time during long-running `channels process`:
+
+```text
+Processing pending messages...
+  [@root] Processing... (2m 15s elapsed)
+```
+
+**Implementation:** Timer display during persona invocation.
+
+### 4. Verbose delegate streaming
+
+Option to stream delegate's work for debugging/visibility:
+
+```bash
+npx dot-agents channels process @root --verbose
+```
+
+**Implementation:** Pass through stdout/stderr from spawned persona.
+
+---
+
 ## CLI Feedback for Channel Publish <!-- target: backlog -->
 
 Improve CLI feedback when publishing to persona DMs.
@@ -397,7 +449,7 @@ Improve CLI feedback when publishing to persona DMs.
 
 **Potential:** Show confirmation, message ID, or async status indicator.
 
-**Status:** Current behavior is acceptable for MVP.
+**Status:** Current behavior is acceptable for MVP. See "Delegation DX Improvements" for specific enhancements.
 
 ---
 
@@ -501,6 +553,82 @@ npx dot-agents projects list
 - Consider `--json` flag for programmatic access
 
 **Discovered:** 2026-01-02 during cross-project delegation.
+
+---
+
+## Testing DX Improvements <!-- target: next-minor -->
+
+Establish a robust test/spec setup for confident local development without running as daily driver.
+
+**Problem:** Testing currently relies on shell scripts and running against live project structures. No isolated E2E environment exists, making it hard to validate changes without dogfooding.
+
+### Directory Structure
+
+```text
+dot-agents/
+├── tests/           # Unit tests - internal correctness, fast
+│   ├── lib/
+│   │   ├── channels.test.ts
+│   │   ├── personas.test.ts
+│   │   └── registry.test.ts
+│   └── fixtures/    # Minimal mocks/stubs
+│
+└── specs/           # E2E specs - test like a user, slower
+    ├── fixtures/    # Real project structures
+    │   ├── minimal-project/
+    │   ├── multi-persona/
+    │   └── cross-project/
+    ├── channels.spec.ts
+    ├── personas.spec.ts
+    └── daemon.spec.ts
+```
+
+**Mental model:** `tests/` = unit tests (fast, isolated), `specs/` = E2E (test like a user).
+
+### CI Strategy
+
+| Trigger                      | What Runs                       | Rationale                            |
+| ---------------------------- | ------------------------------- | ------------------------------------ |
+| Every push to main           | `npm test` (unit)               | Fast feedback, trunk-based           |
+| PR from contributors         | `npm test` + `npm run spec`     | Full validation for external changes |
+| Tag push (v*.*.\*)           | `npm test` + `npm run spec`     | Pre-release gate                     |
+| Manual (`workflow_dispatch`) | Selectable: unit, spec, or both | On-demand review                     |
+
+### Tasks
+
+- [ ] Migrate from `node:test` to Vitest (native TS, built-in coverage)
+- [ ] Add coverage reporting to CI
+- [ ] Create `tests/` directory structure (move existing `*.test.ts`)
+- [ ] Create `specs/` directory structure with fixture projects
+- [ ] Migrate shell scripts (`scripts/test-*.sh`) to TypeScript specs
+- [ ] Update CI workflow with spec job and `workflow_dispatch` selector
+- [ ] Add npm scripts for selective spec runs
+
+### npm Scripts
+
+```json
+{
+  "test": "vitest run tests/",
+  "spec": "vitest run specs/",
+  "spec:channels": "vitest run specs/channels.spec.ts",
+  "spec:personas": "vitest run specs/personas.spec.ts",
+  "test:all": "vitest run",
+  "test:coverage": "vitest run --coverage"
+}
+```
+
+### Selective Spec Runs
+
+```bash
+# Run specific spec file
+npm run spec -- specs/channels.spec.ts
+
+# Run specs matching pattern
+npm run spec -- --testNamePattern="cross-project"
+
+# Verbose output for review
+npm run spec -- --reporter=verbose
+```
 
 ---
 
