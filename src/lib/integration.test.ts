@@ -1,4 +1,4 @@
-import { describe, it, before, after } from "node:test";
+import { describe, it, beforeAll, afterAll } from "vitest";
 import assert from "node:assert";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -280,7 +280,7 @@ describe("Integration: Cross-project delegation with isolated fixture", () => {
   const projectA = join(testRoot, "project-a");
   const projectB = join(testRoot, "project-b");
 
-  before(async () => {
+  beforeAll(async () => {
     // Create project A with root persona
     await mkdir(join(projectA, ".agents", "channels", "@root"), { recursive: true });
     await writeFile(
@@ -318,7 +318,7 @@ I am project A's developer persona.
     );
   });
 
-  after(async () => {
+  afterAll(async () => {
     try {
       await rm(testRoot, { recursive: true, force: true });
     } catch {
