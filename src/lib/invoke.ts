@@ -14,6 +14,11 @@ import {
 import { getEnvironmentContextMarkdown } from "./environment.js";
 
 /**
+ * Execution mode for persona invocation
+ */
+export type ExecutionMode = "headless" | "interactive";
+
+/**
  * Options for invoking a persona directly
  */
 export interface InvokePersonaOptions {
@@ -25,6 +30,10 @@ export interface InvokePersonaOptions {
   goal?: string;
   /** Timeout in milliseconds (default: 10 minutes) */
   timeoutMs?: number;
+  /** Execution mode: headless (default) or interactive */
+  mode?: ExecutionMode;
+  /** Stream stdout/stderr to console for visibility */
+  verbose?: boolean;
 }
 
 /**
@@ -46,6 +55,8 @@ export async function invokePersona(
     source = "dm",
     goal = `DM invocation: ${personaName}`,
     timeoutMs = 10 * 60 * 1000,
+    mode = "headless",
+    verbose = false,
   } = options;
 
   // Resolve persona path - handle root persona specially
@@ -60,7 +71,7 @@ export async function invokePersona(
     sessionsDir: config.sessionsDir,
     runtime: {
       hostname: hostname(),
-      executionMode: "headless",
+      executionMode: mode,
       triggerType: "dm",
       workingDir: config.agentsDir,
     },
@@ -121,8 +132,8 @@ export async function invokePersona(
   parts.push(`You received a direct message:\n\n${message}`);
   const prompt = parts.join("\n");
 
-  // Use headless commands for DM-triggered invocations
-  const cmds = persona.commands.headless;
+  // Use commands based on mode
+  const cmds = mode === "interactive" ? persona.commands.interactive : persona.commands.headless;
 
   if (!cmds) {
     const endedAt = new Date();
@@ -130,12 +141,12 @@ export async function invokePersona(
       success: false,
       exitCode: 1,
       stdout: "",
-      stderr: `Persona '${persona.name}' does not support headless mode`,
+      stderr: `Persona '${persona.name}' does not support ${mode} mode`,
       duration: endedAt.getTime() - startedAt.getTime(),
       runId: context.RUN_ID,
       startedAt,
       endedAt,
-      error: "Persona does not support headless mode",
+      error: `Persona does not support ${mode} mode`,
     };
     await finalizeSession(session, {
       success: result.success,
@@ -160,21 +171,32 @@ export async function invokePersona(
       );
       const [command, ...args] = expandedCmd.split(/\s+/);
 
-      const execResult = await execa(command, args, {
-        input: prompt,
-        cwd: config.agentsDir,
-        env,
-        timeout: timeoutMs,
-        reject: false,
-      });
+      // Execute with appropriate stdio based on verbose mode
+      const execResult = verbose
+        ? await execa(command, args, {
+            input: prompt,
+            cwd: config.agentsDir,
+            env,
+            timeout: timeoutMs,
+            reject: false,
+            stdout: "inherit",
+            stderr: "inherit",
+          })
+        : await execa(command, args, {
+            input: prompt,
+            cwd: config.agentsDir,
+            env,
+            timeout: timeoutMs,
+            reject: false,
+          });
 
       const endedAt = new Date();
 
       result = {
         success: execResult.exitCode === 0,
         exitCode: execResult.exitCode ?? 1,
-        stdout: execResult.stdout,
-        stderr: execResult.stderr,
+        stdout: verbose ? "" : (execResult.stdout as string) || "",
+        stderr: verbose ? "" : (execResult.stderr as string) || "",
         duration: endedAt.getTime() - startedAt.getTime(),
         runId: context.RUN_ID,
         startedAt,
@@ -183,8 +205,9 @@ export async function invokePersona(
 
       if (result.success) break;
 
+      const stderrStr = verbose ? "" : (execResult.stderr as string) || "";
       lastError = new Error(
-        `Command failed with exit code ${result.exitCode}: ${execResult.stderr}`
+        `Command failed with exit code ${result.exitCode}${stderrStr ? `: ${stderrStr}` : ""}`
       );
     } catch (error) {
       lastError = error as Error;

@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Delegation DX improvements** - Better cross-project delegation experience
+  - Warn when publishing to a project with stopped daemon
+  - `--mode` flag for `channels process` (headless/interactive)
+  - Progress indicator with elapsed time during processing
+  - `--verbose` flag to stream delegate output
+
+### Changed
+
+- **Migrated test framework** - Switched from node:test to vitest for improved testing DX
+
+### Documentation
+
+- Added Testing DX and Delegation DX to roadmap
+- Added multi-participant session thread orchestration pattern to MEMORY.md
+
 ## [0.6.0] - 2026-01-03
 
 ### Added

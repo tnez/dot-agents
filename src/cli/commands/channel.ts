@@ -1,5 +1,6 @@
 import { Command } from "commander";
 import chalk from "chalk";
+import { join } from "node:path";
 import {
   requireConfig,
   listChannels,
@@ -12,7 +13,9 @@ import {
   processChannels,
   listDMChannels,
   getPendingMessages,
+  getDaemonStatus,
 } from "../../lib/index.js";
+import type { ExecutionMode } from "../../lib/processor.js";
 
 /**
  * Parsed from address with optional thread context
@@ -171,6 +174,15 @@ channelsCommand
       }
       console.log(chalk.dim(`  Message ID: ${messageId}`));
       console.log(chalk.dim(`  Thread ID: ${threadId}`));
+
+      // Check daemon status for target project and warn if stopped
+      if (resolved.projectName) {
+        const targetAgentsDir = join(resolved.channelsDir, "..");
+        const daemonStatus = await getDaemonStatus(targetAgentsDir);
+        if (!daemonStatus.running) {
+          console.log(chalk.yellow(`  ⚠️  ${resolved.projectName} daemon is stopped. Run \`channels process\` to handle.`));
+        }
+      }
     } catch (error) {
       console.error(chalk.red(`Error: ${(error as Error).message}`));
       process.exit(1);
@@ -341,6 +353,8 @@ channelsCommand
   .description("Process pending messages in DM channels (one-shot)")
   .argument("[channel]", "Specific channel to process (e.g., @persona)")
   .option("--dry-run", "Show pending messages without processing")
+  .option("--mode <mode>", "Execution mode: headless (default) or interactive", "headless")
+  .option("--verbose", "Stream delegate output for visibility")
   .action(async (channel, options) => {
     try {
       const config = await requireConfig();
@@ -394,13 +408,78 @@ channelsCommand
         return;
       }
 
+      // Validate mode option
+      const mode = options.mode as ExecutionMode;
+      if (mode !== "headless" && mode !== "interactive") {
+        console.error(
+          chalk.red(`Invalid mode: ${options.mode}. Must be "headless" or "interactive".`)
+        );
+        process.exit(1);
+      }
+
       // Process messages
       console.log(chalk.blue("Processing pending messages..."));
+
+      // Progress tracking for elapsed time display
+      let currentChannel: string | null = null;
+      let processingStartTime: number | null = null;
+      let progressInterval: ReturnType<typeof setInterval> | null = null;
+
+      // Format elapsed time for display
+      const formatElapsed = (ms: number): string => {
+        const seconds = Math.floor(ms / 1000);
+        if (seconds < 60) {
+          return `${seconds}s`;
+        }
+        const minutes = Math.floor(seconds / 60);
+        const remainingSeconds = seconds % 60;
+        return `${minutes}m ${remainingSeconds}s`;
+      };
+
+      // Progress callback to show elapsed time
+      const onProgress = (ch: string, status: "started" | "processing" | "complete") => {
+        if (status === "started") {
+          currentChannel = ch;
+          processingStartTime = Date.now();
+
+          // Start progress interval (update every 5 seconds)
+          if (progressInterval) {
+            clearInterval(progressInterval);
+          }
+          progressInterval = setInterval(() => {
+            if (processingStartTime && currentChannel) {
+              const elapsed = Date.now() - processingStartTime;
+              process.stdout.write(`\r  [${currentChannel}] Processing... (${formatElapsed(elapsed)} elapsed)`);
+            }
+          }, 5000);
+
+          // Initial progress message
+          process.stdout.write(`  [${ch}] Processing...`);
+        } else if (status === "complete") {
+          // Clear the interval
+          if (progressInterval) {
+            clearInterval(progressInterval);
+            progressInterval = null;
+          }
+          // Clear the line for final result
+          process.stdout.write("\r" + " ".repeat(60) + "\r");
+          currentChannel = null;
+          processingStartTime = null;
+        }
+      };
 
       const result = await processChannels(config, {
         channel,
         requirePersona: true,
+        mode,
+        verbose: options.verbose,
+        onProgress,
       });
+
+      // Ensure interval is cleared
+      if (progressInterval) {
+        clearInterval(progressInterval);
+      }
 
       if (result.messagesProcessed === 0) {
         console.log(chalk.yellow("No pending messages to process"));
@@ -411,7 +490,7 @@ channelsCommand
       for (const r of result.results) {
         if (r.success) {
           console.log(
-            chalk.green(`  [ok] ${r.channel} ${r.messageId.slice(0, 19)} (${r.duration}ms)`)
+            chalk.green(`  [ok] ${r.channel} ${r.messageId.slice(0, 19)} (${formatElapsed(r.duration)})`)
           );
         } else {
           console.log(

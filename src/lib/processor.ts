@@ -42,6 +42,11 @@ export interface ProcessAllResult {
   success: boolean;
 }
 
+import type { ExecutionMode } from "./invoke.js";
+
+// Re-export for convenience
+export type { ExecutionMode };
+
 /**
  * Options for processing channels
  */
@@ -50,6 +55,12 @@ export interface ProcessOptions {
   channel?: string;
   /** Only process channels that have a matching persona */
   requirePersona?: boolean;
+  /** Execution mode: headless (default) or interactive */
+  mode?: ExecutionMode;
+  /** Stream stdout/stderr during processing for visibility */
+  verbose?: boolean;
+  /** Callback for progress updates during processing */
+  onProgress?: (channel: string, status: "started" | "processing" | "complete", elapsedMs?: number) => void;
 }
 
 /**
@@ -75,13 +86,23 @@ function buildMessageContext(message: PendingMessage): Record<string, string> {
 }
 
 /**
+ * Options for processing a single message
+ */
+interface ProcessMessageOptions {
+  mode?: ExecutionMode;
+  verbose?: boolean;
+}
+
+/**
  * Process a single pending message by invoking the persona
  */
 async function processMessage(
   config: DotAgentsConfig,
-  message: PendingMessage
+  message: PendingMessage,
+  options: ProcessMessageOptions = {}
 ): Promise<ProcessResult> {
   const personaName = message.channel.slice(1); // Remove @ prefix
+  const { mode = "headless", verbose = false } = options;
 
   try {
     const context = buildMessageContext(message);
@@ -89,6 +110,8 @@ async function processMessage(
       source: message.channel,
       context,
       goal: `Process DM: ${personaName}`,
+      mode,
+      verbose,
     });
 
     return {
@@ -194,8 +217,21 @@ export async function processChannels(
 
     // Process each message
     for (const message of pending) {
-      const result = await processMessage(config, message);
+      // Notify progress callback
+      if (options.onProgress) {
+        options.onProgress(channel, "started");
+      }
+
+      const result = await processMessage(config, message, {
+        mode: options.mode,
+        verbose: options.verbose,
+      });
       results.push(result);
+
+      // Notify completion
+      if (options.onProgress) {
+        options.onProgress(channel, "complete", result.duration);
+      }
     }
 
     // Mark channel as processed
