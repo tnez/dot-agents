@@ -464,7 +464,7 @@ Convert shell test scripts to self-documenting workflows:
 
 ---
 
-## Delegation DX Improvements <!-- target: next-minor -->
+## Delegation DX Improvements <!-- shipped: 0.7.0 -->
 
 Improve developer experience for cross-project delegation based on dogfooding feedback.
 
@@ -631,7 +631,7 @@ npx dot-agents projects list
 
 ---
 
-## Testing DX Improvements <!-- target: next-minor -->
+## Testing DX Improvements <!-- shipped: 0.7.0 -->
 
 Establish a robust test/spec setup for confident local development without running as daily driver.
 
