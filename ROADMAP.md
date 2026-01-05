@@ -371,9 +371,83 @@ When processing a DM thread, the processor should "own" the thread and monitor f
 3. If new messages exist, include them and continue
 4. If another process tries to claim an active thread, it waits or skips
 
+### DOOM LOOP Prevention
+
+**Critical:** Without safeguards, thread monitoring creates infinite loops:
+
+```text
+1. @root processes message in thread T
+2. @root replies to thread T
+3. Thread T has new message → triggers processing
+4. @root processes its own reply
+5. @root replies again → DOOM LOOP
+```
+
+**Required safeguards:**
+
+- **Self-reply detection** - Never process messages authored by self
+- **Message attribution** - Track `from` field reliably (persona + project)
+- **Max iterations** - Hard limit on processing cycles per thread (e.g., 10)
+- **Conversation markers** - Explicit "conversation complete" to end monitoring
+- **Cooldown period** - Minimum time between processing same thread
+
+**Design principle:** A persona should only respond to messages from _other_ entities, never its own output.
+
 **Workaround for now:** Post complete tasks upfront, don't use thread replies for addendums during processing.
 
-**Discovered:** 2026-01-03 during delegation dogfooding.
+**Discovered:** 2026-01-03 during delegation dogfooding. DOOM LOOP concerns raised 2026-01-05.
+
+---
+
+## Channel Subscriptions <!-- target: backlog -->
+
+Define which persona is responsible for a channel by default, eliminating the need for explicit `@tags` on every message.
+
+**Problem:** Currently, messages require explicit `@persona` addressing. For dedicated channels (e.g., `#support`, `#deployments`), users shouldn't need to tag - the channel's "owner" should handle it.
+
+**Two possible approaches:**
+
+### Option A: Channel-level ownership
+
+Define owner in channel metadata:
+
+```yaml
+# .agents/channels/#support/channel.yaml
+name: support
+owner: support-agent
+description: Customer support requests
+```
+
+Messages to `#support` automatically route to `@support-agent`.
+
+### Option B: Persona-level subscriptions
+
+Define subscriptions in persona config:
+
+```yaml
+# .agents/personas/support-agent/PERSONA.md frontmatter
+name: support-agent
+subscribes:
+  - "#support"
+  - "#feedback"
+```
+
+Persona monitors subscribed channels for new messages.
+
+**Considerations:**
+
+- Multiple subscribers? → Round-robin, first-available, or broadcast?
+- Override behavior? → `@specific-persona` in message bypasses default?
+- Subscription filters? → Only certain tags, patterns, or senders?
+- Channel vs DM semantics? → DMs are inherently owned, channels are shared
+
+**Design questions to resolve:**
+
+1. Where does the config live - channel, persona, or both?
+2. How do multiple subscribers interact?
+3. Does explicit `@mention` override subscription routing?
+
+**Discovered:** 2026-01-05 during roadmap discussion.
 
 ---
 
