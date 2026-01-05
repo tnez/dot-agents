@@ -7,6 +7,7 @@ Future features and improvements planned for dot-agents.
 - `next-minor` - Targeting the next minor release (0.x)
 - `next-major` - Targeting 1.0 release
 - `backlog` - Planned but not yet scheduled
+- `shipped: X.Y.Z` - Released in specified version
 
 ---
 
@@ -302,7 +303,7 @@ Refactor daemon to use `personas run` as underlying primitive.
 
 ---
 
-## Unified Channel Address Resolution <!-- target: next-minor -->
+## Unified Channel Address Resolution <!-- shipped: 0.6.0 -->
 
 Resolve `@name` addresses by checking both registered projects and local personas.
 
@@ -341,7 +342,7 @@ npx dot-agents channels publish "@myproject" "do something"
 
 ---
 
-## `channels process` Command <!-- target: next-minor -->
+## `channels process` Command <!-- shipped: 0.6.0 -->
 
 One-shot trigger processing for repos without always-on daemon.
 
@@ -527,7 +528,7 @@ Improve CLI feedback when publishing to persona DMs.
 
 ---
 
-## Cross-Project Delegation Callbacks <!-- target: next-minor -->
+## Cross-Project Delegation Callbacks <!-- shipped: 0.6.0 -->
 
 Support cross-project channel syntax for delegation callbacks.
 
@@ -602,7 +603,7 @@ npx dot-agents channels publish "#docs/sessions" "Status update..." --thread $SE
 
 ---
 
-## `projects list` Daemon Status <!-- target: next-minor -->
+## `projects list` Daemon Status <!-- shipped: 0.6.0 -->
 
 Show whether registered projects have a running daemon.
 
@@ -670,13 +671,13 @@ dot-agents/
 
 ### Tasks
 
-- [ ] Migrate from `node:test` to Vitest (native TS, built-in coverage)
-- [ ] Add coverage reporting to CI
-- [ ] Create `tests/` directory structure (move existing `*.test.ts`)
-- [ ] Create `specs/` directory structure with fixture projects
-- [ ] Migrate shell scripts (`scripts/test-*.sh`) to TypeScript specs
-- [ ] Update CI workflow with spec job and `workflow_dispatch` selector
-- [ ] Add npm scripts for selective spec runs
+- [x] Migrate from `node:test` to Vitest (native TS, built-in coverage)
+- [x] Add coverage reporting to CI
+- [x] Create `tests/` directory structure (move existing `*.test.ts`)
+- [x] Create `specs/` directory structure with fixture projects
+- [x] Migrate shell scripts (`scripts/test-*.sh`) to TypeScript specs
+- [x] Update CI workflow with spec job and `workflow_dispatch` selector
+- [x] Add npm scripts for selective spec runs
 
 ### npm Scripts
 
