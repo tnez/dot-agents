@@ -53,6 +53,7 @@ interface RegisteredProjectInfo {
  * Environment context data
  */
 export interface EnvironmentContext {
+  currentTime: Date;
   projectName: string | null;
   daemonRunning: boolean;
   daemonPid?: number;
@@ -148,6 +149,7 @@ export async function buildEnvironmentContext(
   }));
 
   return {
+    currentTime: new Date(),
     projectName,
     daemonRunning: daemonStatus.running,
     daemonPid: daemonStatus.pid,
@@ -234,6 +236,20 @@ export function formatEnvironmentContext(context: EnvironmentContext): string {
   const lines: string[] = [];
 
   lines.push("## Your Environment");
+  lines.push("");
+
+  // Current time with day of week
+  const dateOptions: Intl.DateTimeFormatOptions = {
+    weekday: "long",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZoneName: "short",
+  };
+  const formattedTime = context.currentTime.toLocaleString(undefined, dateOptions);
+  lines.push(`**Current Time:** ${formattedTime}`);
   lines.push("");
 
   // Project info with daemon status
