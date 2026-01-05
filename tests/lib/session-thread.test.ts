@@ -9,8 +9,8 @@ import {
   updateSession,
   endSession,
   getSessionWorkspace,
-} from "./session-thread.js";
-import { readChannel } from "./channel.js";
+} from "../../src/lib/session-thread.js";
+import { readChannel } from "../../src/lib/channel.js";
 
 // Small delay to ensure unique timestamps for message IDs
 const tick = () => setTimeout(10);

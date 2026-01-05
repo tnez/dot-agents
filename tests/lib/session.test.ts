@@ -10,7 +10,7 @@ import {
   finalizeSession,
   getRecentSessions,
   readSession,
-} from "./session.js";
+} from "../../src/lib/session.js";
 
 describe("generateSessionId", () => {
   it("generates ISO-like format with dashes for colons", () => {

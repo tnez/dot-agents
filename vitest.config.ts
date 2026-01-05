@@ -2,8 +2,8 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   test: {
-    // Test file patterns
-    include: ["src/**/*.test.ts"],
+    // Test file patterns - unit tests in tests/, E2E specs in specs/
+    include: ["tests/**/*.test.ts", "specs/**/*.spec.ts"],
 
     // Use Node environment
     environment: "node",
