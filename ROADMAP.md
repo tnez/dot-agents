@@ -167,7 +167,7 @@ Extend `mcp.json` to support HTTP transport, not just stdio.
 
 ---
 
-## Channels Web UI <!-- target: next-major -->
+## Channels Web UI <!-- target: next-minor -->
 
 Full web interface for channels with attachment support.
 
