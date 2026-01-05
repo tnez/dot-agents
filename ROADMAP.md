@@ -167,7 +167,7 @@ Extend `mcp.json` to support HTTP transport, not just stdio.
 
 ---
 
-## Channels Web UI <!-- target: next-minor -->
+## Channels Web UI <!-- shipped: 0.7.0 -->
 
 Full web interface for channels with attachment support.
 
@@ -176,17 +176,20 @@ Full web interface for channels with attachment support.
 **Features:**
 
 - Web UI for browsing channels, threads, and messages
-- Attachment/artifact support (PDFs, images, files)
-- Real-time updates via SSE or WebSocket
+- Real-time updates via SSE
 - Mobile-friendly responsive design
+- Attachment/artifact support (PDFs, images, files) - _future_
 
-**HTTP API (foundation):**
+**HTTP API:**
 
 - `GET /channels` - list all channels
-- `GET /channels/:name` - read messages (`?since=`, `?limit=`)
+- `GET /channels/:name` - read messages (`?since=`, `?limit=`, `?thread=`)
 - `GET /channels/:name/:messageId` - specific message + replies
 - `POST /channels/:name` - publish message
-- `POST /channels/:name/attachments` - upload attachments
+- `POST /channels/:name/:messageId/reply` - reply to thread
+- `GET /channels-stream` - SSE endpoint for real-time updates
+
+**Web UI:** Access via `http://localhost:3141/ui` when daemon is running.
 
 ---
 
