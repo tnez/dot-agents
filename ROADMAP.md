@@ -707,6 +707,58 @@ npm run spec -- --reporter=verbose
 
 ---
 
+## Machine-Scoped Execution <!-- target: backlog -->
+
+Scope workflows and channel processors to run only on specific machines.
+
+**Problem:** When running daemons on multiple machines (e.g., Mac Mini server + MacBook laptop) with synced `.agents/` directories, workflows execute redundantly on every machine. Need a way to designate which machine(s) should handle specific workflows.
+
+**Use case:**
+
+- `heimdall` (Mac Mini server) - runs scheduled workflows (morning paper, inbox processing)
+- `tnez-lappy` (MacBook) - interactive sessions only, no daemon workflows
+- Both machines sync `.agents/` via Syncthing/iCloud
+
+**Proposed workflow config:**
+
+```yaml
+# .agents/workflows/publish-morning-paper/WORKFLOW.md frontmatter
+name: publish-morning-paper
+schedule: "0 6 * * *"
+host: heimdall # Only run on this machine
+```
+
+**Proposed channel config:**
+
+```yaml
+# .agents/channels/@human/channel.yaml
+name: human
+processor: null # No auto-processing
+host: heimdall # Only process on this machine (if processor set)
+```
+
+**Implementation options:**
+
+1. **`host` field** - Exact hostname match (`os.hostname()`)
+2. **`hosts` array** - Multiple allowed machines
+3. **`host_pattern`** - Regex for flexible matching
+4. **Environment variable** - `DOT_AGENTS_HOST_ROLE=server` with role-based filtering
+
+**Daemon behavior:**
+
+- On startup, check hostname
+- Skip workflows/channels where `host` doesn't match
+- Log skipped items at debug level
+
+**CLI behavior:**
+
+- `workflows list` - show host constraints
+- `daemon status` - show which workflows are active on this host
+
+**Discovered:** 2026-01-05 from multi-machine dogfooding.
+
+---
+
 ## Port to Bun <!-- target: backlog -->
 
 Consider porting from Node.js to Bun for improved performance and developer experience.
