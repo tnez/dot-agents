@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>dot-agents Channels</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <header class="sidebar-header">
+        <h1>dot-agents</h1>
+        <span class="connection-status" id="connection-status">Connecting...</span>
+      </header>
+      <nav class="channel-list" id="channel-list">
+        <div class="loading">Loading channels...</div>
+      </nav>
+    </aside>
+
+    <main class="content">
+      <header class="content-header" id="content-header">
+        <h2 id="channel-name">Select a channel</h2>
+        <span class="channel-description" id="channel-description"></span>
+      </header>
+
+      <div class="messages" id="messages">
+        <div class="empty-state">
+          <p>Select a channel from the sidebar to view messages</p>
+        </div>
+      </div>
+
+      <footer class="composer" id="composer" style="display: none;">
+        <form id="message-form">
+          <input
+            type="text"
+            id="message-input"
+            placeholder="Type a message..."
+            autocomplete="off"
+          >
+          <button type="submit">Send</button>
+        </form>
+      </footer>
+    </main>
+
+    <aside class="thread-panel" id="thread-panel" style="display: none;">
+      <header class="thread-header">
+        <h3>Thread</h3>
+        <button class="close-thread" id="close-thread">&times;</button>
+      </header>
+      <div class="thread-messages" id="thread-messages"></div>
+      <footer class="thread-composer">
+        <form id="reply-form">
+          <input
+            type="text"
+            id="reply-input"
+            placeholder="Reply in thread..."
+            autocomplete="off"
+          >
+          <button type="submit">Reply</button>
+        </form>
+      </footer>
+    </aside>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

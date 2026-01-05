@@ -1,8 +1,11 @@
 import express, { type Express, type Request, type Response } from "express";
 import type { Server } from "node:http";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import type { Scheduler, ScheduledJob } from "../lib/scheduler.js";
 import type { Daemon } from "../daemon.js";
 import { getVersion } from "../../lib/index.js";
+import { createChannelsRouter } from "./channels.js";
 
 /**
  * API response types
@@ -127,6 +130,69 @@ export function createApiServer(daemon: Daemon): Express {
     } catch (error) {
       res.status(500).json({ error: (error as Error).message });
     }
+  });
+
+  // Channels API
+  const config = daemon.getConfig();
+  if (config) {
+    app.use("/channels", createChannelsRouter(config.channelsDir));
+
+    // SSE endpoint for real-time channel updates
+    app.get("/channels-stream", (req: Request, res: Response) => {
+      const watcher = daemon.getWatcher();
+
+      // Set up SSE headers
+      res.setHeader("Content-Type", "text/event-stream");
+      res.setHeader("Cache-Control", "no-cache");
+      res.setHeader("Connection", "keep-alive");
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      res.flushHeaders();
+
+      // Send initial connection message
+      res.write(`data: ${JSON.stringify({ type: "connected" })}\n\n`);
+
+      // Keep-alive ping every 30 seconds
+      const keepAlive = setInterval(() => {
+        res.write(`: ping\n\n`);
+      }, 30000);
+
+      if (watcher) {
+        // Forward watcher events to SSE clients
+        const onDmReceived = (event: { channel: string; messageId: string }) => {
+          res.write(`data: ${JSON.stringify({ type: "dm:received", ...event })}\n\n`);
+        };
+
+        const onChannelMessage = (event: { channel: string; messageId: string }) => {
+          res.write(`data: ${JSON.stringify({ type: "channel:message", ...event })}\n\n`);
+        };
+
+        watcher.on("dm:received", onDmReceived);
+        watcher.on("channel:message", onChannelMessage);
+
+        // Clean up on client disconnect
+        req.on("close", () => {
+          clearInterval(keepAlive);
+          watcher.off("dm:received", onDmReceived);
+          watcher.off("channel:message", onChannelMessage);
+        });
+      } else {
+        // No watcher available, just keep connection alive
+        req.on("close", () => {
+          clearInterval(keepAlive);
+        });
+      }
+    });
+  }
+
+  // Serve static files for web UI
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
+  const webDir = join(__dirname, "..", "web");
+  app.use("/ui", express.static(webDir));
+
+  // Redirect root to UI
+  app.get("/", (_req: Request, res: Response) => {
+    res.redirect("/ui");
   });
 
   return app;

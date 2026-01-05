@@ -482,4 +482,18 @@ export class Daemon {
   getPort(): number {
     return this.port;
   }
+
+  /**
+   * Get the config (for API routes that need access to directories)
+   */
+  getConfig(): DotAgentsConfig | null {
+    return this.config;
+  }
+
+  /**
+   * Get the watcher instance (for SSE/WebSocket integration)
+   */
+  getWatcher(): Watcher | null {
+    return this.watcher;
+  }
 }
