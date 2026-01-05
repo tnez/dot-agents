@@ -120,20 +120,25 @@ export async function validatePersona(
 
     // Validate cmd type if present
     if (frontmatter.cmd !== undefined) {
-      if (
-        typeof frontmatter.cmd !== "string" &&
-        !Array.isArray(frontmatter.cmd)
-      ) {
+      const isString = typeof frontmatter.cmd === "string";
+      const isArray = Array.isArray(frontmatter.cmd);
+      const isCommandModes =
+        typeof frontmatter.cmd === "object" &&
+        !isArray &&
+        frontmatter.cmd !== null &&
+        ("headless" in frontmatter.cmd || "interactive" in frontmatter.cmd);
+
+      if (!isString && !isArray && !isCommandModes) {
         issues.push(
           createError(
             "invalid_type",
             "cmd",
-            "'cmd' must be a string or array of strings",
-            "Use: cmd: \"claude --print\" or cmd: [\"claude --print\"]"
+            "'cmd' must be a string, array, or object with headless/interactive",
+            'Use: cmd: "claude --print" or cmd: { headless: "...", interactive: "..." }'
           )
         );
-      } else if (Array.isArray(frontmatter.cmd)) {
-        frontmatter.cmd.forEach((c: unknown, index: number) => {
+      } else if (isArray) {
+        (frontmatter.cmd as unknown[]).forEach((c: unknown, index: number) => {
           if (typeof c !== "string") {
             issues.push(
               createError(
@@ -144,6 +149,65 @@ export async function validatePersona(
             );
           }
         });
+      } else if (isCommandModes) {
+        // Validate CommandModes object format
+        const cmd = frontmatter.cmd as Record<string, unknown>;
+        const validKeys = ["headless", "interactive"];
+        const cmdKeys = Object.keys(cmd);
+
+        // Check for unknown keys
+        for (const key of cmdKeys) {
+          if (!validKeys.includes(key)) {
+            issues.push(
+              createWarning(
+                "unknown_field",
+                `cmd.${key}`,
+                `Unknown cmd mode '${key}'`,
+                "Valid modes: headless, interactive"
+              )
+            );
+          }
+        }
+
+        // Must have at least one mode
+        if (!cmd.headless && !cmd.interactive) {
+          issues.push(
+            createError(
+              "invalid_value",
+              "cmd",
+              "cmd must specify at least headless or interactive",
+              'Use: cmd: { headless: "...", interactive: "..." }'
+            )
+          );
+        }
+
+        // Validate each mode's value
+        for (const mode of validKeys) {
+          if (cmd[mode] !== undefined) {
+            const modeValue = cmd[mode];
+            if (typeof modeValue !== "string" && !Array.isArray(modeValue)) {
+              issues.push(
+                createError(
+                  "invalid_type",
+                  `cmd.${mode}`,
+                  `'cmd.${mode}' must be a string or array of strings`
+                )
+              );
+            } else if (Array.isArray(modeValue)) {
+              modeValue.forEach((c: unknown, index: number) => {
+                if (typeof c !== "string") {
+                  issues.push(
+                    createError(
+                      "invalid_type",
+                      `cmd.${mode}[${index}]`,
+                      "Command must be a string"
+                    )
+                  );
+                }
+              });
+            }
+          }
+        }
       }
     }
 
