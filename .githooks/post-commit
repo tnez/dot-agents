@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+
+# Remind agent to report progress
+echo ""
+echo "REMINDER: Update your session log if working in a coordinated session."
+echo ""
+echo "If you have a SESSION_ID, post progress:"
+echo "  npx dot-agents channels publish \"#sessions\" \"Committed: \$(git log -1 --oneline)\" --thread \"\$SESSION_ID\""
+echo ""
+
+exit 0

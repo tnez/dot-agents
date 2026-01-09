@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+# Reminder about review process
+echo ""
+echo "REMINDER: Have you run the review workflow?"
+echo "  npx dot-agents run review"
+echo ""
+
+exit 0
