@@ -5,14 +5,27 @@ echo "Running pre-commit checks..."
 
 # Run TypeScript build
 echo "Building TypeScript..."
-npm run build
+bun run build
 
 # Run typecheck
 echo "Running typecheck..."
-npm run typecheck
+bun run typecheck
 
 # Run lint on staged files
 echo "Linting staged files..."
-just lint-staged
+
+# Get staged markdown files
+staged_md=$(git diff --cached --name-only --diff-filter=ACM | grep '\.md$' || true)
+if [ -n "$staged_md" ]; then
+    echo "Linting staged markdown files..."
+    echo "$staged_md" | xargs npx markdownlint
+fi
+
+# Get staged files for prettier
+staged_files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(md|json|yml|yaml)$' || true)
+if [ -n "$staged_files" ]; then
+    echo "Checking staged file formatting..."
+    echo "$staged_files" | xargs npx prettier --check
+fi
 
 echo "All checks passed!"

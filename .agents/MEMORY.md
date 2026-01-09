@@ -117,4 +117,31 @@ Post an update when:
 
 ---
 
-Last updated: 2026-01-03
+## Development Environment
+
+### Bun Migration (2026-01-08)
+
+Migrated from npm/Node.js to Bun for development. Published package still runs on Node.
+
+**What changed:**
+
+- **Package manager:** `bun install` replaces `npm install`
+- **Unit tests:** `bun test` replaces vitest for fast unit tests
+- **Development:** `bun --watch src/cli/index.ts` runs TypeScript directly
+- **Build:** Still uses `tsc` for Node-compatible output with type declarations
+
+**What stayed the same:**
+
+- Published package runs on Node (no Bun dependency for consumers)
+- E2E specs use vitest (Bun's test runner times out on slow claude spawning tests)
+- npm publish workflow unchanged
+
+**Gotchas discovered:**
+
+1. **Bun test timeout:** Default is 5 seconds. E2E specs that spawn `claude --print` need 20-30 seconds. Keep vitest for specs.
+2. **Lockfile format:** Bun uses `bun.lock` (text-based). Removed `package-lock.json`.
+3. **CI frozen lockfile:** Use `bun install --frozen-lockfile` in CI (equivalent to `npm ci`).
+
+---
+
+Last updated: 2026-01-08

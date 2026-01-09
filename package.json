@@ -20,18 +20,19 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json && cp -r src/daemon/web dist/daemon/",
-    "postbuild": "echo '\n📦 Build complete. Run `npm link` to use locally.\n'",
-    "dev": "tsc --watch",
+    "postbuild": "echo '\n📦 Build complete. Run `bun link` to use locally.\n'",
+    "dev": "bun --watch src/cli/index.ts",
+    "dev:daemon": "bun --watch src/daemon/index.ts",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run tests/",
-    "test:watch": "vitest tests/",
+    "test": "bun test tests/",
+    "test:watch": "bun test --watch tests/",
     "spec": "vitest run specs/",
     "spec:watch": "vitest specs/",
-    "test:all": "vitest run",
+    "test:all": "bun test tests/ && vitest run specs/",
     "test:coverage": "vitest run --coverage",
     "clean": "rm -rf dist *.tsbuildinfo",
     "prepare": "git config core.hooksPath .githooks || true",
-    "prepublishOnly": "npm run clean && npm run build"
+    "prepublishOnly": "bun run clean && bun run build"
   },
   "files": [
     "dist",
