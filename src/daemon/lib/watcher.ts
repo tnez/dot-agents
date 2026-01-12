@@ -83,16 +83,16 @@ export class Watcher extends EventEmitter {
       this.channelWatcher = watch(this.channelsDir, {
         ignoreInitial: true,
         persistent: true,
-        depth: 3, // channels/{@name|#name}/message-id/message.md
+        depth: 3, // channels/{@name|#name}/{thread-id}/{message-id}.md
       });
 
       this.channelWatcher.on("add", (path) => {
-        // Only process message.md files
-        if (!path.endsWith("/message.md")) {
+        // Only process .md message files
+        if (!path.endsWith(".md")) {
           return;
         }
 
-        // Path: {channelsDir}/{@persona|#channel}/{message-id}/message.md
+        // Path: {channelsDir}/{@persona|#channel}/{thread-id}/{message-id}.md
         const messageDir = dirname(path);
         const messageId = basename(messageDir);
         const channelDir = dirname(messageDir);
