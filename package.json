@@ -29,7 +29,7 @@
     "spec": "vitest run specs/",
     "spec:watch": "vitest specs/",
     "test:all": "bun test tests/ && vitest run specs/",
-    "test:coverage": "vitest run --coverage",
+    "test:coverage": "vitest run tests/ --coverage",
     "clean": "rm -rf dist *.tsbuildinfo",
     "prepare": "git config core.hooksPath .githooks || true",
     "prepublishOnly": "bun run clean && bun run build"
