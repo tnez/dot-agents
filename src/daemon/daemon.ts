@@ -113,6 +113,10 @@ export class Daemon {
   /** Rate limiter for persona invocations (doom loop protection) */
   private rateLimiter: RateLimiter = new RateLimiter(5, 60_000);
 
+  /** Recently processed message IDs for deduplication (prevents double-triggers from awaitWriteFinish) */
+  private recentlyProcessed: Map<string, number> = new Map();
+  private readonly DEDUP_TTL_MS = 60_000; // 1 minute TTL
+
   constructor(options: DaemonOptions = {}) {
     this.port = options.port ?? 3141;
     this.watchEnabled = options.watch ?? true;
@@ -345,6 +349,17 @@ export class Daemon {
     this.watcher.on("dm:received", async ({ channel, messageId, messagePath }) => {
       // Extract persona name from channel (e.g., "@channel-manager" -> "channel-manager")
       const personaName = channel.slice(1);
+
+      // Deduplication: skip if we've already processed this message recently
+      // (awaitWriteFinish can emit multiple events for the same file)
+      const dedupKey = `dm:${channel}:${messageId}`;
+      if (this.recentlyProcessed.has(dedupKey)) {
+        return; // Silently skip duplicate
+      }
+      this.recentlyProcessed.set(dedupKey, Date.now());
+      // Cleanup old entries periodically
+      this.cleanupRecentlyProcessed();
+
       console.log(`[dm] Received message for ${personaName}: ${messageId}`);
 
       try {
@@ -398,6 +413,15 @@ export class Daemon {
         // No workflow registered for this channel - that's fine, not all channels trigger workflows
         return;
       }
+
+      // Deduplication: skip if we've already processed this message recently
+      // (awaitWriteFinish can emit multiple events for the same file)
+      const dedupKey = `channel:${channel}:${messageId}`;
+      if (this.recentlyProcessed.has(dedupKey)) {
+        return; // Silently skip duplicate
+      }
+      this.recentlyProcessed.set(dedupKey, Date.now());
+      this.cleanupRecentlyProcessed();
 
       console.log(`[channel] ${channel} message ${messageId} -> triggering ${workflow.name}`);
 
@@ -553,5 +577,17 @@ export class Daemon {
    */
   getWatcher(): Watcher | null {
     return this.watcher;
+  }
+
+  /**
+   * Clean up old entries from the deduplication map
+   */
+  private cleanupRecentlyProcessed(): void {
+    const now = Date.now();
+    for (const [key, timestamp] of this.recentlyProcessed) {
+      if (now - timestamp > this.DEDUP_TTL_MS) {
+        this.recentlyProcessed.delete(key);
+      }
+    }
   }
 }
