@@ -1,4 +1,4 @@
-import { readdir, stat, readFile } from "node:fs/promises";
+import { readdir, stat, readFile, access, constants } from "node:fs/promises";
 import { join } from "node:path";
 import type { Server } from "node:http";
 import type { Express } from "express";
@@ -22,6 +22,46 @@ import { Executor } from "./lib/executor.js";
 import { Watcher } from "./lib/watcher.js";
 import { isSelfReply, RateLimiter } from "./lib/safeguards.js";
 import { createApiServer, startApiServer } from "./api/server.js";
+
+/**
+ * Read a file with retries for cloud-synced files
+ *
+ * Files synced via iCloud/Syncthing may appear in the filesystem before they're
+ * fully readable (EAGAIN error). This function retries with exponential backoff.
+ */
+async function readFileWithRetry(
+  path: string,
+  maxRetries: number = 5,
+  initialDelayMs: number = 100
+): Promise<string> {
+  let lastError: Error | undefined;
+
+  for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      // Check if file is readable first
+      await access(path, constants.R_OK);
+      return await readFile(path, "utf-8");
+    } catch (error) {
+      lastError = error as Error;
+      // Only retry on EAGAIN (-11) or similar transient errors
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== "EAGAIN" && code !== "EBUSY" && code !== "Unknown system error -11") {
+        // For non-transient errors, check the errno
+        const errno = (error as NodeJS.ErrnoException).errno;
+        if (errno !== -11) {
+          throw error; // Not a transient error, don't retry
+        }
+      }
+
+      // Wait before retrying (exponential backoff)
+      const delay = initialDelayMs * Math.pow(2, attempt);
+      console.log(`[dm:debug] File not ready, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+
+  throw lastError ?? new Error(`Failed to read file after ${maxRetries} attempts`);
+}
 
 /**
  * Daemon configuration options
@@ -309,8 +349,8 @@ export class Daemon {
       console.log(`[dm] Received message for ${personaName}: ${messageId}`);
 
       try {
-        // Read the message content
-        const messageContent = await readFile(messagePath, "utf-8");
+        // Read the message content (with retries for cloud-synced files)
+        const messageContent = await readFileWithRetry(messagePath);
 
         // Self-reply detection (doom loop protection)
         if (isSelfReply(messageContent, personaName)) {
@@ -363,8 +403,8 @@ export class Daemon {
       console.log(`[channel] ${channel} message ${messageId} -> triggering ${workflow.name}`);
 
       try {
-        // Read the message content
-        const messageContent = await readFile(messagePath, "utf-8");
+        // Read the message content (with retries for cloud-synced files)
+        const messageContent = await readFileWithRetry(messagePath);
 
         // Strip frontmatter if present
         let content = messageContent;
