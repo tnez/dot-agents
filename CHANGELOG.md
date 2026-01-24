@@ -7,7 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-01-24
+
 ### Added
+
+- **Doom loop safeguards** - Protection against infinite message loops in DM processing
+  - Self-reply detection: Skip messages where `from` field matches target persona
+  - Rate limiting: 5 invocations per persona per minute (in-memory, resets on restart)
+  - Safeguards fail open to avoid dropping legitimate messages
+  - Unit tests for all safeguard scenarios
 
 - **Delegation DX improvements** - Better cross-project delegation experience
   - Warn when publishing to a project with stopped daemon
@@ -18,6 +26,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **Migrated test framework** - Switched from node:test to vitest for improved testing DX
+
+### Fixed
+
+- **Watcher channel detection** - Fixed watcher to correctly detect channel messages
 
 ### Documentation
 

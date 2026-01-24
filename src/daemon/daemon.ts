@@ -20,6 +20,7 @@ import {
 import { Scheduler, type ScheduledJob } from "./lib/scheduler.js";
 import { Executor } from "./lib/executor.js";
 import { Watcher } from "./lib/watcher.js";
+import { isSelfReply, RateLimiter } from "./lib/safeguards.js";
 import { createApiServer, startApiServer } from "./api/server.js";
 
 /**
@@ -69,6 +70,9 @@ export class Daemon {
 
   /** Map of channel names to workflows that trigger on them */
   private channelTriggers: Map<string, Workflow> = new Map();
+
+  /** Rate limiter for persona invocations (doom loop protection) */
+  private rateLimiter: RateLimiter = new RateLimiter(5, 60_000);
 
   constructor(options: DaemonOptions = {}) {
     this.port = options.port ?? 3141;
@@ -307,6 +311,21 @@ export class Daemon {
       try {
         // Read the message content
         const messageContent = await readFile(messagePath, "utf-8");
+
+        // Self-reply detection (doom loop protection)
+        if (isSelfReply(messageContent, personaName)) {
+          console.log(`[dm] Skipping self-reply from ${personaName}`);
+          return;
+        }
+
+        // Rate limiting (doom loop protection)
+        if (!this.rateLimiter.tryInvoke(personaName)) {
+          const count = this.rateLimiter.getInvocationCount(personaName);
+          console.warn(
+            `[dm] Rate limit exceeded for ${personaName} (${count}/5 per minute) - dropping message`
+          );
+          return;
+        }
 
         // Strip frontmatter if present
         let content = messageContent;
