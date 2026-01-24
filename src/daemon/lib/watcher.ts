@@ -86,6 +86,13 @@ export class Watcher extends EventEmitter {
         ignoreInitial: true,
         persistent: true,
         depth: 3, // channels/{@name|#name}/{thread-id}/{message-id}.md
+        // Wait for files to stabilize before emitting events
+        // This helps with cloud-synced files (iCloud, Syncthing) that appear
+        // in the filesystem before they're fully written/readable
+        awaitWriteFinish: {
+          stabilityThreshold: 500, // Wait 500ms after last change
+          pollInterval: 100,
+        },
       });
 
       this.channelWatcher.on("ready", () => {
