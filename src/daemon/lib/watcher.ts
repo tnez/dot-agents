@@ -77,11 +77,9 @@ export class Watcher extends EventEmitter {
     });
 
     // Watch channels for new messages (both DM @* and public #*)
-    console.log(`[watcher:debug] channelsDir=${this.channelsDir}`);
     if (this.channelsDir) {
       // Watch the channels directory for new message.md files
       // Using directory watch instead of glob because @* patterns are unreliable
-      console.log(`[watcher:debug] Creating channel watcher for ${this.channelsDir}`);
       this.channelWatcher = watch(this.channelsDir, {
         ignoreInitial: true,
         persistent: true,
@@ -95,15 +93,9 @@ export class Watcher extends EventEmitter {
         },
       });
 
-      this.channelWatcher.on("ready", () => {
-        console.log(`[watcher:debug] Channel watcher READY, watching ${Object.keys(this.channelWatcher!.getWatched()).length} paths`);
-      });
-
       this.channelWatcher.on("add", (path) => {
-        console.log(`[watcher:debug] RAW ADD: ${path}`);
         // Only process .md message files
         if (!path.endsWith(".md")) {
-          console.log(`[watcher:debug] Skipping non-.md file`);
           return;
         }
 

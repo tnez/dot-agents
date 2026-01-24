@@ -55,7 +55,6 @@ async function readFileWithRetry(
 
       // Wait before retrying (exponential backoff)
       const delay = initialDelayMs * Math.pow(2, attempt);
-      console.log(`[dm:debug] File not ready, retrying in ${delay}ms (attempt ${attempt + 1}/${maxRetries})`);
       await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
