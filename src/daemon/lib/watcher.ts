@@ -1,6 +1,16 @@
 import { watch, type FSWatcher } from "chokidar";
 import { EventEmitter } from "node:events";
+import { readFile } from "node:fs/promises";
 import { dirname, basename } from "node:path";
+
+/**
+ * Check if a string looks like an ISO timestamp (message ID format)
+ * Message IDs are ISO timestamps like "2026-01-24T23:29:20.778Z"
+ * UUIDs are like "621f4c3e-69f8-4c16-994b-3cbda5e27f97"
+ */
+function isISOTimestamp(str: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(str);
+}
 
 /**
  * Events emitted by the watcher
@@ -93,16 +103,17 @@ export class Watcher extends EventEmitter {
         },
       });
 
-      this.channelWatcher.on("add", (path) => {
+      this.channelWatcher.on("add", async (path) => {
         // Only process .md message files
         if (!path.endsWith(".md")) {
           return;
         }
 
         // Path: {channelsDir}/{@persona|#channel}/{thread-id}/{message-id}.md
-        const messageDir = dirname(path);
-        const messageId = basename(messageDir);
-        const channelDir = dirname(messageDir);
+        const messageId = basename(path, ".md");
+        const threadDir = dirname(path);
+        const threadId = basename(threadDir);
+        const channelDir = dirname(threadDir);
         const channel = basename(channelDir);
 
         // Emit appropriate event based on channel type
@@ -111,6 +122,28 @@ export class Watcher extends EventEmitter {
           this.emit("dm:received", { channel, messageId, messagePath: path });
         } else if (channel.startsWith("#")) {
           // Public channel -> trigger workflow
+          // Skip thread replies by checking frontmatter thread_id
+          // - New messages have UUID thread_id (random identifier)
+          // - Replies have timestamp thread_id (pointing to another message)
+          try {
+            const content = await readFile(path, "utf-8");
+            const frontmatterMatch = content.match(/^---\n([\s\S]*?)\n---/);
+            if (frontmatterMatch) {
+              const threadIdMatch = frontmatterMatch[1].match(/thread_id:\s*["']?([^\s"'\n]+)/);
+              if (threadIdMatch) {
+                const frontmatterThreadId = threadIdMatch[1];
+                // If thread_id is a timestamp (not UUID), it's a reply - skip it
+                if (isISOTimestamp(frontmatterThreadId)) {
+                  console.log(`[watcher] Skipping thread reply: ${messageId} (reply to: ${frontmatterThreadId})`);
+                  return;
+                }
+              }
+            }
+          } catch {
+            // If we can't read the file, skip it (fail closed for safety)
+            console.warn(`[watcher] Could not read message file: ${path}`);
+            return;
+          }
           this.emit("channel:message", { channel, messageId, messagePath: path });
         }
       });

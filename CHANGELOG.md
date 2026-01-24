@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.7.3] - 2026-01-24
+
+### Fixed
+
+- **Channel workflow cascade prevention** - Fixed critical bug where thread replies to channel messages would re-trigger workflows, causing exponential agent spawning
+  - Watcher now detects replies by checking if `thread_id` is an ISO timestamp (reply) vs UUID (new thread)
+  - Added rate limiting (5/min) for channel-triggered workflows (was only protecting DM-triggered personas)
+
+## [0.7.2] - 2026-01-24
+
+### Fixed
+
+- **Double-trigger prevention** - Added deduplication to prevent duplicate workflow triggers from `awaitWriteFinish` events
+
+## [0.7.1] - 2026-01-24
+
+### Fixed
+
+- **Cloud-synced file handling** - Added retry logic for reading files that may not be fully synced yet
+
 ## [0.7.0] - 2026-01-24
 
 ### Added

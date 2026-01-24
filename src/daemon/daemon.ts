@@ -423,6 +423,16 @@ export class Daemon {
       this.recentlyProcessed.set(dedupKey, Date.now());
       this.cleanupRecentlyProcessed();
 
+      // Rate limiting for workflow executions (doom loop protection)
+      const rateLimitKey = `workflow:${workflow.name}`;
+      if (!this.rateLimiter.tryInvoke(rateLimitKey)) {
+        const count = this.rateLimiter.getInvocationCount(rateLimitKey);
+        console.warn(
+          `[channel] Rate limit exceeded for ${workflow.name} (${count}/5 per minute) - dropping message ${messageId}`
+        );
+        return;
+      }
+
       console.log(`[channel] ${channel} message ${messageId} -> triggering ${workflow.name}`);
 
       try {
