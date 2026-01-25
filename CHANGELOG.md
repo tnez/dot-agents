@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-01-25
+
+### Added
+
+- **`{PROMPT}` placeholder** - Support for argument-based agent CLIs like OpenCode
+  - Use `{PROMPT}` in cmd field to pass prompt as argument instead of stdin
+  - Example: `cmd: { headless: "opencode run {PROMPT}" }`
+  - Works for both headless and interactive modes
+
+### Changed
+
+- **CLI namespace restructure** - Commands organized under resource namespaces
+  - `workflows run|list|show` - Workflow management
+  - `personas run|list|show` - Persona management
+  - Removed top-level `run`, `list`, `show` commands
+
+### Removed
+
+- **`projects` command** - Cross-project routing removed from framework
+  - Each project should define its own `AGENTS.md` contract
+  - Simplifies CLI surface area and reduces framework coupling
+  - `@persona` still routes to local persona DMs
+
 ## [0.7.3] - 2026-01-24
 
 ### Fixed
