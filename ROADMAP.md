@@ -11,23 +11,11 @@ Future features and improvements planned for dot-agents.
 
 ---
 
-## CLI Namespace Restructuring <!-- target: 0.8 -->
+## CLI Namespace Restructuring <!-- shipped: 0.8 -->
 
 Reorganize top-level commands under their respective namespaces for consistency and clarity.
 
-**Current state:**
-
-```text
-dot-agents run <name>      # runs a workflow
-dot-agents list [type]     # lists workflows or personas
-dot-agents show            # shows resolved details
-dot-agents workflows       # alias for 'list workflows'
-dot-agents personas        # manage personas
-dot-agents channels        # manage channels
-dot-agents projects        # cross-project routing
-```
-
-**Proposed:**
+**Structure:**
 
 ```text
 dot-agents workflows run <name>
@@ -43,9 +31,9 @@ dot-agents channels publish ...
 dot-agents channels read ...
 ```
 
-### Drop `projects` command
+### Dropped `projects` command
 
-Cross-project communication should not be a framework concern. Each project defines its own contract via an `AGENTS.md` file (or similar) that describes how external agents should interact with it.
+Cross-project communication is no longer a framework concern. Each project defines its own contract via an `AGENTS.md` file (or similar) that describes how external agents should interact with it.
 
 **Rationale:**
 
@@ -53,13 +41,6 @@ Cross-project communication should not be a framework concern. Each project defi
 - The "API" for a project is its documented interface, not registry metadata
 - Reduces framework coupling between projects
 - Simplifies the CLI surface area
-
-**Migration:**
-
-- Remove `projects` subcommand
-- Remove `projects.yaml` registry concept
-- Document `AGENTS.md` pattern for project contracts
-- Cross-project routing becomes "just publish to that project's channel path"
 
 ---
 
