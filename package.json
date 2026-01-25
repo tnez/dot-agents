@@ -1,6 +1,6 @@
 {
   "name": "dot-agents",
-  "version": "0.7.6",
+  "version": "0.8.0",
   "description": "A framework for building agentic workflows with personas and scheduled execution",
   "type": "module",
   "main": "./dist/lib/index.js",
