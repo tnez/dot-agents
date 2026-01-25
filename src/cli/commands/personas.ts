@@ -456,3 +456,66 @@ personasCommand
       process.exit(1);
     }
   });
+
+/**
+ * personas show <name> - Show persona details with inheritance resolved
+ */
+personasCommand
+  .command("show")
+  .description("Show persona details (with inheritance resolved)")
+  .argument("<name>", "Persona path (e.g., claude/autonomous)")
+  .action(async (name) => {
+    try {
+      const config = await requireConfig();
+      const persona = await resolvePersona(
+        `${config.personasDir}/${name}`,
+        config.personasDir
+      );
+
+      console.log(chalk.blue(`Persona: ${persona.name}\n`));
+
+      if (persona.description) {
+        console.log(chalk.white("Description:"), persona.description);
+      }
+
+      console.log(chalk.white("Path:"), persona.path);
+      console.log(
+        chalk.white("Inheritance:"),
+        persona.inheritanceChain.join(" → ")
+      );
+
+      console.log(chalk.white("\nCommands:"));
+      console.log(chalk.dim("  Headless:"));
+      for (const cmd of persona.commands.headless) {
+        console.log(chalk.dim(`    - ${cmd}`));
+      }
+      if (persona.commands.interactive) {
+        console.log(chalk.dim("  Interactive:"));
+        for (const cmd of persona.commands.interactive) {
+          console.log(chalk.dim(`    - ${cmd}`));
+        }
+      }
+
+      if (Object.keys(persona.env).length > 0) {
+        console.log(chalk.white("\nEnvironment:"));
+        for (const [key, value] of Object.entries(persona.env)) {
+          console.log(chalk.dim(`  ${key}=${value}`));
+        }
+      }
+
+      if (persona.skills.length > 0) {
+        console.log(chalk.white("\nSkills:"));
+        for (const skill of persona.skills) {
+          console.log(chalk.dim(`  - ${skill}`));
+        }
+      }
+
+      if (persona.prompt) {
+        console.log(chalk.white("\n--- System Prompt ---\n"));
+        console.log(persona.prompt);
+      }
+    } catch (error) {
+      console.error(chalk.red(`Error: ${(error as Error).message}`));
+      process.exit(1);
+    }
+  });

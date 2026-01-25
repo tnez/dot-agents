@@ -36,7 +36,7 @@ This is the test persona prompt.
 `
     );
 
-    const { stdout } = await execa("node", [CLI_PATH, "show", "persona", "test-persona"], {
+    const { stdout } = await execa("node", [CLI_PATH, "personas", "show", "test-persona"], {
       cwd: testDir,
     });
 
@@ -65,7 +65,7 @@ Test prompt.
 `
     );
 
-    const { stdout } = await execa("node", [CLI_PATH, "show", "persona", "test-persona"], {
+    const { stdout } = await execa("node", [CLI_PATH, "personas", "show", "test-persona"], {
       cwd: testDir,
     });
 
@@ -95,7 +95,7 @@ Standalone persona without base.
 `
     );
 
-    const { stdout } = await execa("node", [CLI_PATH, "show", "persona", "test-persona"], {
+    const { stdout } = await execa("node", [CLI_PATH, "personas", "show", "test-persona"], {
       cwd: testDir,
     });
 
@@ -141,7 +141,7 @@ Child prompt.
 `
     );
 
-    const { stdout } = await execa("node", [CLI_PATH, "show", "persona", "child"], {
+    const { stdout } = await execa("node", [CLI_PATH, "personas", "show", "child"], {
       cwd: testDir,
     });
 
