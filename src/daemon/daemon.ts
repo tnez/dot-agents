@@ -20,7 +20,7 @@ import {
 import { Scheduler, type ScheduledJob } from "./lib/scheduler.js";
 import { Executor } from "./lib/executor.js";
 import { Watcher } from "./lib/watcher.js";
-import { isSelfReply, RateLimiter } from "./lib/safeguards.js";
+import { isSelfReply, RateLimiter, CircuitBreaker } from "./lib/safeguards.js";
 import { createApiServer, startApiServer } from "./api/server.js";
 
 /**
@@ -113,6 +113,9 @@ export class Daemon {
   /** Rate limiter for persona invocations (doom loop protection) */
   private rateLimiter: RateLimiter = new RateLimiter(5, 60_000);
 
+  /** Circuit breaker for daemon-wide failure protection */
+  private circuitBreaker: CircuitBreaker = new CircuitBreaker(10, 60_000, 300_000);
+
   /** Recently processed message IDs for deduplication (prevents double-triggers from awaitWriteFinish) */
   private recentlyProcessed: Map<string, number> = new Map();
   private readonly DEDUP_TTL_MS = 60_000; // 1 minute TTL
@@ -128,15 +131,33 @@ export class Daemon {
 
     // Wire up scheduler events
     this.scheduler.on("job:trigger", async ({ job, workflow }) => {
+      // Circuit breaker check
+      if (this.circuitBreaker.isTripped()) {
+        const state = this.circuitBreaker.getState();
+        console.warn(
+          `[trigger] ${workflow.name} BLOCKED by circuit breaker (reset in ${state.timeUntilReset}s)`
+        );
+        return;
+      }
+
       console.log(`[trigger] ${workflow.name} (${job.cron})`);
       try {
         const result = await this.executor!.run(workflow, job.inputs);
         this.scheduler.updateJobStatus(job.id, result.success);
+
+        // Record success/failure for circuit breaker
+        if (result.success) {
+          this.circuitBreaker.recordSuccess();
+        } else {
+          this.circuitBreaker.recordFailure();
+        }
+
         console.log(
           `[complete] ${workflow.name}: ${result.success ? "success" : "failure"} (${result.duration}ms)`
         );
       } catch (error) {
         this.scheduler.updateJobStatus(job.id, false);
+        this.circuitBreaker.recordFailure();
         console.error(`[error] ${workflow.name}: ${(error as Error).message}`);
       }
     });
@@ -405,6 +426,15 @@ export class Daemon {
           return;
         }
 
+        // Circuit breaker check
+        if (this.circuitBreaker.isTripped()) {
+          const state = this.circuitBreaker.getState();
+          console.warn(
+            `[dm] ${personaName} BLOCKED by circuit breaker (reset in ${state.timeUntilReset}s)`
+          );
+          return;
+        }
+
         // Strip frontmatter if present
         let content = messageContent;
         if (content.startsWith("---\n")) {
@@ -421,10 +451,18 @@ export class Daemon {
           context: { DM_MESSAGE_ID: messageId },
         });
 
+        // Record success/failure for circuit breaker
+        if (result.success) {
+          this.circuitBreaker.recordSuccess();
+        } else {
+          this.circuitBreaker.recordFailure();
+        }
+
         console.log(
           `[dm] ${personaName}: ${result.success ? "success" : "failure"} (${result.duration}ms)`
         );
       } catch (error) {
+        this.circuitBreaker.recordFailure();
         console.error(`[dm] Failed to invoke ${personaName}: ${(error as Error).message}`);
       }
     });
@@ -457,6 +495,15 @@ export class Daemon {
         return;
       }
 
+      // Circuit breaker check
+      if (this.circuitBreaker.isTripped()) {
+        const state = this.circuitBreaker.getState();
+        console.warn(
+          `[channel] ${workflow.name} BLOCKED by circuit breaker (reset in ${state.timeUntilReset}s)`
+        );
+        return;
+      }
+
       console.log(`[channel] ${channel} message ${messageId} -> triggering ${workflow.name}`);
 
       try {
@@ -482,10 +529,18 @@ export class Daemon {
 
         const result = await this.executor!.run(workflow, { inputs });
 
+        // Record success/failure for circuit breaker
+        if (result.success) {
+          this.circuitBreaker.recordSuccess();
+        } else {
+          this.circuitBreaker.recordFailure();
+        }
+
         console.log(
           `[channel] ${workflow.name}: ${result.success ? "success" : "failure"} (${result.duration}ms)`
         );
       } catch (error) {
+        this.circuitBreaker.recordFailure();
         console.error(`[channel] Failed to trigger ${workflow.name}: ${(error as Error).message}`);
       }
     });
@@ -611,6 +666,17 @@ export class Daemon {
    */
   getWatcher(): Watcher | null {
     return this.watcher;
+  }
+
+  /**
+   * Get circuit breaker state for status reporting
+   */
+  getCircuitBreakerState(): {
+    tripped: boolean;
+    failureCount: number;
+    timeUntilReset: number;
+  } {
+    return this.circuitBreaker.getState();
   }
 
   /**

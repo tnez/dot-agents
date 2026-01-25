@@ -1,6 +1,6 @@
 import { describe, it, beforeEach } from "vitest";
 import assert from "node:assert";
-import { isSelfReply, RateLimiter } from "../../src/daemon/lib/safeguards.js";
+import { isSelfReply, RateLimiter, CircuitBreaker } from "../../src/daemon/lib/safeguards.js";
 
 describe("isSelfReply", () => {
   describe("self-reply detection", () => {
@@ -212,6 +212,139 @@ describe("RateLimiter", () => {
 
     it("allows invocation for new persona", () => {
       assert.strictEqual(limiter.isAllowed("new-persona"), true);
+    });
+  });
+});
+
+describe("CircuitBreaker", () => {
+  let breaker: CircuitBreaker;
+
+  beforeEach(() => {
+    // Low thresholds for testing: 3 failures in 1 second, 100ms cooldown
+    breaker = new CircuitBreaker(3, 1000, 100);
+  });
+
+  describe("basic tripping", () => {
+    it("starts in non-tripped state", () => {
+      assert.strictEqual(breaker.isTripped(), false);
+      assert.strictEqual(breaker.getState().tripped, false);
+    });
+
+    it("does not trip below threshold", () => {
+      breaker.recordFailure();
+      breaker.recordFailure();
+
+      assert.strictEqual(breaker.isTripped(), false);
+      assert.strictEqual(breaker.getState().failureCount, 2);
+    });
+
+    it("trips at threshold", () => {
+      breaker.recordFailure();
+      breaker.recordFailure();
+      breaker.recordFailure();
+
+      assert.strictEqual(breaker.isTripped(), true);
+      assert.strictEqual(breaker.getState().tripped, true);
+    });
+  });
+
+  describe("success clears failures", () => {
+    it("clears failure count on success", () => {
+      breaker.recordFailure();
+      breaker.recordFailure();
+
+      assert.strictEqual(breaker.getState().failureCount, 2);
+
+      breaker.recordSuccess();
+
+      assert.strictEqual(breaker.getState().failureCount, 0);
+    });
+
+    it("prevents tripping if success occurs before threshold", () => {
+      breaker.recordFailure();
+      breaker.recordFailure();
+      breaker.recordSuccess(); // Reset
+      breaker.recordFailure();
+      breaker.recordFailure();
+
+      // Should not be tripped - only 2 consecutive failures after success
+      assert.strictEqual(breaker.isTripped(), false);
+    });
+  });
+
+  describe("auto-reset after cooldown", () => {
+    it("auto-resets after cooldown period", async () => {
+      // Trip the breaker
+      breaker.recordFailure();
+      breaker.recordFailure();
+      breaker.recordFailure();
+
+      assert.strictEqual(breaker.isTripped(), true);
+
+      // Wait for cooldown (100ms + buffer)
+      await new Promise((resolve) => setTimeout(resolve, 150));
+
+      // Should auto-reset on next check
+      assert.strictEqual(breaker.isTripped(), false);
+      assert.strictEqual(breaker.getState().tripped, false);
+    });
+  });
+
+  describe("manual reset", () => {
+    it("reset clears tripped state", () => {
+      breaker.recordFailure();
+      breaker.recordFailure();
+      breaker.recordFailure();
+
+      assert.strictEqual(breaker.isTripped(), true);
+
+      breaker.reset();
+
+      assert.strictEqual(breaker.isTripped(), false);
+      assert.strictEqual(breaker.getState().failureCount, 0);
+    });
+  });
+
+  describe("sliding window", () => {
+    it("failures outside window are not counted", async () => {
+      // Use breaker with 100ms window
+      const shortBreaker = new CircuitBreaker(3, 100, 1000);
+
+      shortBreaker.recordFailure();
+      shortBreaker.recordFailure();
+
+      // Wait for failures to expire
+      await new Promise((resolve) => setTimeout(resolve, 150));
+
+      // Add one more failure - should only have 1 failure now
+      shortBreaker.recordFailure();
+
+      assert.strictEqual(shortBreaker.isTripped(), false);
+      assert.strictEqual(shortBreaker.getState().failureCount, 1);
+    });
+  });
+
+  describe("getState", () => {
+    it("returns complete state", () => {
+      breaker.recordFailure();
+      breaker.recordFailure();
+
+      const state = breaker.getState();
+
+      assert.strictEqual(state.tripped, false);
+      assert.strictEqual(state.failureCount, 2);
+      assert.strictEqual(state.timeUntilReset, 0);
+    });
+
+    it("includes timeUntilReset when tripped", () => {
+      breaker.recordFailure();
+      breaker.recordFailure();
+      breaker.recordFailure();
+
+      const state = breaker.getState();
+
+      assert.strictEqual(state.tripped, true);
+      assert.ok(state.timeUntilReset > 0);
     });
   });
 });

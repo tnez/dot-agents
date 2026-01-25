@@ -15,6 +15,11 @@ interface StatusResponse {
   uptime: number;
   jobs: number;
   version: string;
+  circuitBreaker: {
+    tripped: boolean;
+    failureCount: number;
+    timeUntilReset: number;
+  };
 }
 
 interface JobsResponse {
@@ -48,6 +53,7 @@ export function createApiServer(daemon: Daemon): Express {
       uptime: daemon.getUptime(),
       jobs: daemon.getScheduler().getJobCount(),
       version,
+      circuitBreaker: daemon.getCircuitBreakerState(),
     };
     res.json(status);
   });
