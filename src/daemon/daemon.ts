@@ -322,7 +322,10 @@ export class Daemon {
         if (workflow.on?.channel) {
           const channel = workflow.on.channel.channel;
           this.channelTriggers.set(channel, workflow);
-          console.log(`[watcher] Updated ${workflow.name} for channel ${channel}`);
+          console.log(`[watcher] Reloaded ${workflow.name} (channel trigger: ${channel})`);
+        } else {
+          const jobCount = this.scheduler.getJobs().filter(j => j.workflowName === workflow.name).length;
+          console.log(`[watcher] Reloaded ${workflow.name} (${jobCount} scheduled job${jobCount !== 1 ? 's' : ''})`);
         }
       } catch (error) {
         console.error(`[error] Failed to reload workflow: ${(error as Error).message}`);
@@ -343,6 +346,27 @@ export class Daemon {
           console.log(`[watcher] Unregistered ${name} from channel ${channel}`);
         }
       }
+    });
+
+    // Handle persona file changes (for observability)
+    // Note: Personas are loaded fresh on each invocation, so no cache invalidation needed.
+    // These handlers provide visibility into persona changes for debugging.
+    this.watcher.on("persona:added", ({ path }) => {
+      const parts = path.split("/");
+      const name = parts[parts.length - 1];
+      console.log(`[watcher] Persona added: ${name}`);
+    });
+
+    this.watcher.on("persona:changed", ({ path }) => {
+      const parts = path.split("/");
+      const name = parts[parts.length - 1];
+      console.log(`[watcher] Persona changed: ${name} (will use new version on next invocation)`);
+    });
+
+    this.watcher.on("persona:removed", ({ path }) => {
+      const parts = path.split("/");
+      const name = parts[parts.length - 1];
+      console.log(`[watcher] Persona removed: ${name}`);
     });
 
     // Handle DM messages to personas

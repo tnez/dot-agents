@@ -1,6 +1,6 @@
 {
   "name": "dot-agents",
-  "version": "0.7.3",
+  "version": "0.7.4",
   "description": "A framework for building agentic workflows with personas and scheduled execution",
   "type": "module",
   "main": "./dist/lib/index.js",
@@ -20,7 +20,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json && cp -r src/daemon/web dist/daemon/",
-    "postbuild": "echo '\n📦 Build complete. Run `bun link` to use locally.\n'",
+    "postbuild": "echo '\n📦 Build complete. Run `bun link && chmod +x dist/cli/index.js` to use locally.\n'",
     "dev": "bun --watch src/cli/index.ts",
     "dev:daemon": "bun --watch src/daemon/index.ts",
     "typecheck": "tsc --noEmit",
