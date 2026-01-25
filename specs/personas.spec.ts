@@ -319,4 +319,33 @@ System prompt content
     const output = stdout + stderr;
     assert.ok(output.includes("System prompt:"), "Verbose should show system prompt info");
   });
+
+  it("supports {PROMPT} placeholder for argument-based agents", async () => {
+    // This tests OpenCode-style invocation where the prompt is passed as an argument
+    // instead of via stdin. Uses 'echo {PROMPT}' to verify the placeholder is replaced.
+    await writeFile(
+      join(testDir, ".agents/personas/test-runner/PERSONA.md"),
+      `---
+name: test-runner
+description: Test persona with argument-based prompt
+extends: none
+cmd:
+  headless: echo {PROMPT}
+---
+
+SYSTEM_PROMPT_MARKER
+`
+    );
+
+    const { stdout } = await execa(
+      "node",
+      [CLI_PATH, "personas", "run", "test-runner", "--headless", "-p", "USER_PROMPT_ARG"],
+      { cwd: testDir }
+    );
+
+    // Should contain system prompt (passed as argument to echo)
+    assert.ok(stdout.includes("SYSTEM_PROMPT_MARKER"), "Should include system prompt via {PROMPT} placeholder");
+    // Should contain user prompt
+    assert.ok(stdout.includes("USER_PROMPT_ARG"), "Should include user prompt via {PROMPT} placeholder");
+  });
 });

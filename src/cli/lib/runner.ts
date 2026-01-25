@@ -245,27 +245,66 @@ export async function runWorkflow(
   for (const cmd of cmds) {
     try {
       const expandedCmd = expandVariables(cmd, context as Record<string, string>, env);
-      const [command, ...args] = expandedCmd.split(/\s+/);
+
+      // Check if command uses {PROMPT} placeholder for argument-based prompt passing
+      // This supports agents like OpenCode that take the message as an argument
+      const usesPromptPlaceholder = expandedCmd.includes("{PROMPT}");
 
       let execResult;
-      if (interactive) {
-        // Interactive mode: pass prompt as CLI argument, inherit stdio for terminal interaction
-        execResult = await execa(command, [...args, prompt], {
-          cwd: workingDir,
-          env,
-          timeout: timeoutMs,
-          stdio: "inherit",
-          reject: false,
-        });
+      if (usesPromptPlaceholder) {
+        // Replace {PROMPT} with the actual prompt as a separate argument
+        const parts = expandedCmd.split(/\s+/);
+        const finalArgs: string[] = [];
+        let command = "";
+
+        for (let i = 0; i < parts.length; i++) {
+          if (i === 0) {
+            command = parts[i];
+          } else if (parts[i] === "{PROMPT}") {
+            finalArgs.push(prompt);
+          } else {
+            finalArgs.push(parts[i]);
+          }
+        }
+
+        if (interactive) {
+          execResult = await execa(command, finalArgs, {
+            cwd: workingDir,
+            env,
+            timeout: timeoutMs,
+            stdio: "inherit",
+            reject: false,
+          });
+        } else {
+          execResult = await execa(command, finalArgs, {
+            cwd: workingDir,
+            env,
+            timeout: timeoutMs,
+            reject: false,
+          });
+        }
       } else {
-        // Headless mode: pipe prompt via stdin, capture output
-        execResult = await execa(command, args, {
-          input: prompt,
-          cwd: workingDir,
-          env,
-          timeout: timeoutMs,
-          reject: false,
-        });
+        const [command, ...args] = expandedCmd.split(/\s+/);
+
+        if (interactive) {
+          // Interactive mode: pass prompt as CLI argument, inherit stdio for terminal interaction
+          execResult = await execa(command, [...args, prompt], {
+            cwd: workingDir,
+            env,
+            timeout: timeoutMs,
+            stdio: "inherit",
+            reject: false,
+          });
+        } else {
+          // Headless mode: pipe prompt via stdin, capture output
+          execResult = await execa(command, args, {
+            input: prompt,
+            cwd: workingDir,
+            env,
+            timeout: timeoutMs,
+            reject: false,
+          });
+        }
       }
 
       const endedAt = new Date();

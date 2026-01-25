@@ -350,7 +350,29 @@ personasCommand
       for (const cmd of cmds) {
         try {
           const expandedCmd = expandVariables(cmd, context as Record<string, string>, env);
-          let [command, ...args] = expandedCmd.split(/\s+/);
+
+          // Check if command uses {PROMPT} placeholder for argument-based prompt passing
+          // This supports agents like OpenCode that take the message as an argument
+          const usesPromptPlaceholder = expandedCmd.includes("{PROMPT}");
+
+          let command: string;
+          let args: string[];
+
+          if (usesPromptPlaceholder) {
+            // Replace {PROMPT} with the actual prompt as a separate argument
+            const parts = expandedCmd.split(/\s+/);
+            command = parts[0];
+            args = [];
+            for (let i = 1; i < parts.length; i++) {
+              if (parts[i] === "{PROMPT}") {
+                args.push(fullPrompt);
+              } else {
+                args.push(parts[i]);
+              }
+            }
+          } else {
+            [command, ...args] = expandedCmd.split(/\s+/);
+          }
 
           // Inject MCP config if present (Claude-specific for now)
           if (mcpConfigPath && command === "claude") {
@@ -373,7 +395,8 @@ personasCommand
             console.log(chalk.dim(`Workspace: ${workspacePath}`));
             console.log();
 
-            const execArgs = fullPrompt ? [...args, fullPrompt] : args;
+            // Only append prompt if not already included via {PROMPT} placeholder
+            const execArgs = (!usesPromptPlaceholder && fullPrompt) ? [...args, fullPrompt] : args;
 
             const result = await execa(command, execArgs, {
               cwd: workingDir,
@@ -390,14 +413,25 @@ personasCommand
 
             lastError = new Error(`Command exited with code ${exitCode}`);
           } else {
-            // Headless mode: pass full prompt via stdin
+            // Headless mode: use stdin unless {PROMPT} placeholder was used
             if (fullPrompt) {
-              const result = await execa(command, args, {
-                input: fullPrompt,
-                cwd: workingDir,
-                env,
-                reject: false,
-              });
+              let result;
+              if (usesPromptPlaceholder) {
+                // Prompt already passed as argument via {PROMPT}
+                result = await execa(command, args, {
+                  cwd: workingDir,
+                  env,
+                  reject: false,
+                });
+              } else {
+                // Default: pass prompt via stdin
+                result = await execa(command, args, {
+                  input: fullPrompt,
+                  cwd: workingDir,
+                  env,
+                  reject: false,
+                });
+              }
 
               stdout = result.stdout ?? "";
               stderr = result.stderr ?? "";

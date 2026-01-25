@@ -44,32 +44,39 @@ Cross-project communication is no longer a framework concern. Each project defin
 
 ---
 
-## OpenCode Support <!-- target: 0.8 -->
+## OpenCode Support <!-- shipped: 0.8 -->
 
-Add OpenCode as a supported agent CLI alongside Claude Code.
+Support for OpenCode and other argument-based agent CLIs via `{PROMPT}` placeholder.
 
-**Problem:** Currently hardcoded for `claude` CLI. OpenCode enables local model usage (Ollama, etc.) which is valuable for:
-
-- Privacy-sensitive use cases
-- Offline development
-- Cost reduction for high-volume workflows
-
-**Implementation:**
-
-Introduce agent adapters if the pattern makes sense at this point, or handle pragmatically.
+**Solution:** Use `{PROMPT}` placeholder in cmd field to pass prompt as argument instead of stdin:
 
 ```yaml
-agent: opencode # or agent: claude (default)
+# OpenCode persona example
+cmd:
+  headless: opencode run {PROMPT}
+  interactive: opencode {PROMPT}
+
+# Claude persona (default - uses stdin)
+cmd:
+  headless: claude --print -p
+  interactive: claude
 ```
 
-**CLI differences:**
+**How it works:**
 
-| CLI      | Interactive       | Headless             | System Prompt      |
-| -------- | ----------------- | -------------------- | ------------------ |
-| claude   | `claude`          | `claude --print -p`  | stdin or `-p`      |
-| opencode | `opencode [path]` | `opencode run [msg]` | `--agent` / config |
+- If `{PROMPT}` appears in the command, it's replaced with the full prompt as a separate argument
+- Without `{PROMPT}`, prompt is passed via stdin (Claude default)
+- Works for both headless and interactive modes
 
-**Priority:** Claude Code and OpenCode only. Other CLIs (aider, goose, gemini) can come later if there's demand.
+**Supported patterns:**
+
+| Pattern                 | Behavior                    |
+| ----------------------- | --------------------------- |
+| `claude --print -p`     | Prompt via stdin (default)  |
+| `opencode run {PROMPT}` | Prompt as argument          |
+| `echo {PROMPT}`         | Testing: echoes prompt back |
+
+**Priority:** Claude Code and OpenCode. Other CLIs (aider, goose, gemini) can use `{PROMPT}` if they accept argument-based prompts.
 
 ---
 
