@@ -51,9 +51,12 @@ export class Watcher extends EventEmitter {
     this.running = true;
 
     // Watch workflows
+    // Use polling for reliable detection of cloud-synced files (iCloud, Syncthing)
     this.workflowWatcher = watch(`${this.workflowsDir}/**/WORKFLOW.md`, {
       ignoreInitial: true,
       persistent: true,
+      usePolling: true,
+      interval: 5000, // Poll every 5s (workflows change infrequently)
     });
 
     this.workflowWatcher.on("add", (path) => {
@@ -69,9 +72,12 @@ export class Watcher extends EventEmitter {
     });
 
     // Watch personas
+    // Use polling for reliable detection of cloud-synced files (iCloud, Syncthing)
     this.personaWatcher = watch(`${this.personasDir}/**/PERSONA.md`, {
       ignoreInitial: true,
       persistent: true,
+      usePolling: true,
+      interval: 5000, // Poll every 5s (personas change infrequently)
     });
 
     this.personaWatcher.on("add", (path) => {
@@ -94,9 +100,12 @@ export class Watcher extends EventEmitter {
         ignoreInitial: true,
         persistent: true,
         depth: 3, // channels/{@name|#name}/{thread-id}/{message-id}.md
+        // Use polling for reliable detection of cloud-synced files (iCloud, Syncthing)
+        // fs.watch (chokidar v4 default) may miss files synced from other machines
+        usePolling: true,
+        interval: 1000, // Poll every 1 second (balance between responsiveness and CPU)
         // Wait for files to stabilize before emitting events
-        // This helps with cloud-synced files (iCloud, Syncthing) that appear
-        // in the filesystem before they're fully written/readable
+        // This helps with cloud-synced files that appear before they're fully written
         awaitWriteFinish: {
           stabilityThreshold: 500, // Wait 500ms after last change
           pollInterval: 100,
