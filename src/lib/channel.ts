@@ -73,6 +73,39 @@ export function isChannelName(name: string): boolean {
 }
 
 /**
+ * Result of resolving a channel address
+ */
+export interface ResolvedChannelAddress {
+  /** Path to the channels directory */
+  channelsDir: string;
+  /** Channel name (e.g., @persona, #channel) */
+  localChannelName: string;
+}
+
+/**
+ * Resolve a channel address to a channels directory and channel name
+ *
+ * @param address - Channel address (e.g., @persona, #channel)
+ * @param localChannelsDir - The local channels directory
+ * @returns Resolved channel address info
+ */
+export async function resolveChannelAddress(
+  address: string,
+  localChannelsDir: string
+): Promise<ResolvedChannelAddress> {
+  if (!isChannelName(address)) {
+    throw new Error(
+      `Invalid channel address: ${address}. Must start with # or @`
+    );
+  }
+
+  return {
+    channelsDir: localChannelsDir,
+    localChannelName: address,
+  };
+}
+
+/**
  * List all channels in the channels directory
  */
 export async function listChannels(

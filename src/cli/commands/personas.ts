@@ -19,8 +19,6 @@ import {
   startSession,
   endSession,
   type SessionThread,
-  // Project registry for FROM_ADDRESS
-  getProjectNameByPath,
   // Environment discovery
   getEnvironmentContextMarkdown,
 } from "../../lib/index.js";
@@ -237,12 +235,8 @@ personasCommand
       }
 
       // Build FROM_ADDRESS for callback routing
-      // Format: #project/sessions:session-id (if registered project) or #sessions:session-id (local)
-      let fromAddress = `#sessions:${sessionId}`;
-      const projectName = await getProjectNameByPath(config.agentsDir);
-      if (projectName) {
-        fromAddress = `#${projectName}/sessions:${sessionId}`;
-      }
+      // Format: #sessions:session-id
+      const fromAddress = `#sessions:${sessionId}`;
 
       // Create execution context with session
       const context = createExecutionContext({

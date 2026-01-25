@@ -164,25 +164,9 @@ channelsCommand
         meta
       );
 
-      // Show where the message was routed
-      if (resolved.isProjectEntryPoint) {
-        console.log(chalk.green(`Published to ${channel} → ${resolved.projectName}@root`));
-      } else if (resolved.projectName) {
-        console.log(chalk.green(`Published to ${channel}`));
-      } else {
-        console.log(chalk.green(`Published to ${channel}`));
-      }
+      console.log(chalk.green(`Published to ${channel}`));
       console.log(chalk.dim(`  Message ID: ${messageId}`));
       console.log(chalk.dim(`  Thread ID: ${threadId}`));
-
-      // Check daemon status for target project and warn if stopped
-      if (resolved.projectName) {
-        const targetAgentsDir = join(resolved.channelsDir, "..");
-        const daemonStatus = await getDaemonStatus(targetAgentsDir);
-        if (!daemonStatus.running) {
-          console.log(chalk.yellow(`  ⚠️  ${resolved.projectName} daemon is stopped. Run \`channels process\` to handle.`));
-        }
-      }
     } catch (error) {
       console.error(chalk.red(`Error: ${(error as Error).message}`));
       process.exit(1);
