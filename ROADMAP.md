@@ -11,19 +11,84 @@ Future features and improvements planned for dot-agents.
 
 ---
 
-## Bundled Agent CLI <!-- target: next-major -->
+## CLI Namespace Restructuring <!-- target: 0.8 -->
 
-Ship a built-in agent CLI runner so users can run dot-agents with local LLMs without external dependencies.
+Reorganize top-level commands under their respective namespaces for consistency and clarity.
 
-**Problem:** Currently requires external CLI tools (claude, aider, etc.) which may not support local models.
+**Current state:**
+
+```text
+dot-agents run <name>      # runs a workflow
+dot-agents list [type]     # lists workflows or personas
+dot-agents show            # shows resolved details
+dot-agents workflows       # alias for 'list workflows'
+dot-agents personas        # manage personas
+dot-agents channels        # manage channels
+dot-agents projects        # cross-project routing
+```
 
 **Proposed:**
 
-- Bundle a simple agent CLI that speaks to local LLM APIs (Ollama, LM Studio, llama.cpp)
-- Direct API integration without shelling out to external tools
-- First-class local model support for privacy-sensitive or offline use cases
+```text
+dot-agents workflows run <name>
+dot-agents workflows list
+dot-agents workflows show <name>
 
-**Enables:** Running dot-agents completely locally without cloud dependencies.
+dot-agents personas run <name>
+dot-agents personas list
+dot-agents personas show <name>
+
+dot-agents channels list
+dot-agents channels publish ...
+dot-agents channels read ...
+```
+
+### Drop `projects` command
+
+Cross-project communication should not be a framework concern. Each project defines its own contract via an `AGENTS.md` file (or similar) that describes how external agents should interact with it.
+
+**Rationale:**
+
+- Projects may use different frameworks entirely
+- The "API" for a project is its documented interface, not registry metadata
+- Reduces framework coupling between projects
+- Simplifies the CLI surface area
+
+**Migration:**
+
+- Remove `projects` subcommand
+- Remove `projects.yaml` registry concept
+- Document `AGENTS.md` pattern for project contracts
+- Cross-project routing becomes "just publish to that project's channel path"
+
+---
+
+## OpenCode Support <!-- target: 0.8 -->
+
+Add OpenCode as a supported agent CLI alongside Claude Code.
+
+**Problem:** Currently hardcoded for `claude` CLI. OpenCode enables local model usage (Ollama, etc.) which is valuable for:
+
+- Privacy-sensitive use cases
+- Offline development
+- Cost reduction for high-volume workflows
+
+**Implementation:**
+
+Introduce agent adapters if the pattern makes sense at this point, or handle pragmatically.
+
+```yaml
+agent: opencode # or agent: claude (default)
+```
+
+**CLI differences:**
+
+| CLI      | Interactive       | Headless             | System Prompt      |
+| -------- | ----------------- | -------------------- | ------------------ |
+| claude   | `claude`          | `claude --print -p`  | stdin or `-p`      |
+| opencode | `opencode [path]` | `opencode run [msg]` | `--agent` / config |
+
+**Priority:** Claude Code and OpenCode only. Other CLIs (aider, goose, gemini) can come later if there's demand.
 
 ---
 
@@ -38,107 +103,15 @@ Curated example projects demonstrating dot-agents patterns for common use cases.
 
 **Prior art:** Generalize from working setups (scoutos, docs) - extract what works well and make it reusable.
 
-**Structure:**
-
-```text
-examples/
-├── software-dev/
-│   ├── .agents/
-│   │   ├── PERSONA.md
-│   │   ├── personas/
-│   │   └── workflows/
-│   └── README.md
-└── pkm/
-    ├── .agents/
-    │   ├── PERSONA.md
-    │   ├── personas/
-    │   └── workflows/
-    └── README.md
-```
-
 **Goal:** New users can clone an example and have a working setup immediately.
 
 ---
 
-## Agent Adapter Pattern <!-- target: next-major -->
-
-Personas declare agent type; adapters handle CLI specifics.
-
-**Problem:** Currently hardcoded for `claude` CLI. MCP injection, command building, and prompt passing all assume Claude's flags. Other CLIs (opencode, aider, goose) won't work without adapters.
-
-**Solution:**
-
-```yaml
-agent: claude
-# No cmd needed - adapter knows CLI patterns
-```
-
-Each adapter implements:
-
-- `buildInteractiveCommand(persona, prompt?)`
-- `buildHeadlessCommand(persona, prompt)`
-- `injectMcp(persona, mcpConfig)`
-
-**Target adapters for 1.0:**
-
-- Claude Code
-- OpenCode
-- Aider
-- Goose
-- Gemini CLI
-- Codex
-- Bundled CLI (see above)
-
-**CLI differences discovered:**
-
-| CLI      | Interactive       | Headless                  | System Prompt          |
-| -------- | ----------------- | ------------------------- | ---------------------- |
-| claude   | `claude`          | `claude --print -p "..."` | stdin or `-p`          |
-| opencode | `opencode [path]` | `opencode run [msg]`      | `--agent` / config     |
-| aider    | `aider`           | `aider --message "..."`   | `--system-prompt` file |
-| goose    | `goose session`   | `goose run "..."`         | config file            |
-
-**Enables:** Support for other agents without hardcoding CLI specifics.
-
----
-
-## First-Class Cross-Project Orchestration <!-- target: next-major -->
-
-Elevate cross-project communication from "works" to "first-class citizen" with robust orchestration primitives.
-
-**Current state:**
-
-- Cross-project routing works (`@project/persona` syntax)
-- Delegation is manual (tmux sessions, direct launches)
-- No built-in callback/response handling
-
-**1.0 Goals:**
-
-- Automatic daemon coordination across registered projects
-- Structured request/response patterns between projects
-- Built-in callback routing (responses flow back to caller)
-- Project health monitoring and status visibility
-- Workflow orchestration spanning multiple projects
-
-**Encapsulated delegation pattern:**
-
-```text
-@documents/dottie
-       │ "implement feature X"
-       ▼
-@scoutos/dottie ──► internal orchestration ──► result
-       │ "done" or "question: ..."
-       ▼
-@documents/dottie
-```
-
-External callers delegate to entry points, not internal personas.
-
----
-
-## HTTP/SSE MCP Transport <!-- target: next-major -->
+## HTTP/SSE MCP Transport <!-- target: backlog -->
 
 Extend `mcp.json` to support HTTP transport, not just stdio.
+
+**Note:** This may be better handled at the agent adapter layer - each CLI has its own MCP configuration patterns. Revisit when adding more agent adapters.
 
 **Current (stdio only):**
 
@@ -162,8 +135,6 @@ Extend `mcp.json` to support HTTP transport, not just stdio.
   }
 }
 ```
-
-**Enables:** Remote MCP servers (Linear, etc.) in persona configs.
 
 ---
 
@@ -193,101 +164,20 @@ Full web interface for channels with attachment support.
 
 ---
 
-## Sessions-as-Threads <!-- target: 0.6.0 -->
+## Sessions-as-Threads <!-- shipped: 0.6.0 -->
 
-Eliminate sessions as a separate primitive. Threads in `#sessions` become the canonical session representation.
+Sessions are threads in `#sessions`. Each session gets a thread directory with messages and a `workspace/` subdirectory for scratch files.
 
-**The Simplification:**
-
-```text
-Before: .agents/sessions/ + .agents/channels/ (two systems)
-After:  .agents/channels/#sessions (one system, threads = sessions)
-```
-
-**Why this matters:**
-
-- One primitive instead of two
-- Cross-machine coordination via file sync (channels already sync)
-- Observable session history via `channels read #sessions`
-- Delegates post updates to parent session thread
-- Natural audit trail for both interactive and headless execution
-
-### How It Works
-
-**Session lifecycle:**
-
-1. `personas run dottie` → publishes to `#sessions`, gets thread ID
-2. Thread ID = session identity (replaces session directory)
-3. Updates posted to thread during execution (guided by persona)
-4. Completion message posted automatically on exit
-
-**Thread as session log:**
+**Structure:**
 
 ```text
-┌─────────────────────────────────────────────────────────────┐
-│ #sessions thread: 2025-01-02T15-30-00.000Z                  │
-├─────────────────────────────────────────────────────────────┤
-│ [15:30] system: Session started                             │
-│         persona: dottie | mode: interactive | host: Odin    │
-│ [15:32] dottie: User asked for dot-agents release           │
-│ [15:32] dottie: Delegating to @dot-agents                   │
-│ [15:35] dot-agents: Starting release workflow...            │
-│ [15:40] dot-agents: Release complete, published 0.6.0       │
-│ [15:41] dottie: Confirmed with user                         │
-│ [15:45] system: Session ended (duration: 15m, exit: 0)      │
-└─────────────────────────────────────────────────────────────┘
+.agents/channels/#sessions/
+└── 2026-01-11T21:47:15.355Z/           # Thread = session
+    ├── 2026-01-11T21:47:15.355Z.md     # Session start message
+    └── workspace/                       # Scratch files
 ```
 
-**Working memory / scratch:**
-
-- Option A: `channels/#sessions/<thread-id>/scratch/` directory
-- Option B: Message attachments (future, with Channels Web UI)
-- For now: scratch directory alongside thread messages
-
-### Implementation
-
-**Remove:**
-
-- `.agents/sessions/` directory structure
-- `createSession()`, `finalizeSession()` complexity
-- `--session-id` flag for explicit resumption
-- `SESSION_DIR` env var (replaced by thread-based scratch)
-
-**Keep/Enhance:**
-
-- `SESSION_ID` → thread ID in `#sessions`
-- `SESSION_THREAD_ID` → same as SESSION_ID (alias for clarity)
-
-**Add:**
-
-- Auto-publish to `#sessions` on `personas run`
-- Auto-publish completion on exit
-- `--thread` flag for posting to specific thread (delegation callback)
-- Soft resumption: "look for recent thread from #sessions" vs hard `--session-id`
-
-**Persona guidance (\_base):**
-
-- Post major updates to session thread
-- Check thread for delegate updates when waiting
-- Pattern: `npx dot-agents channels publish "#sessions" "msg" --thread $SESSION_ID`
-
-**Future skills:**
-
-- `session-update` - simplified wrapper for posting to current thread
-- `session-watch` - tail a session's thread for updates
-
-### Migration
-
-- Existing `.agents/sessions/` directories continue to work (read-only)
-- New sessions go to `#sessions` channel
-- Eventually deprecate sessions/ directory
-
-### Enables
-
-- Cross-project delegation with natural callbacks
-- Multi-machine coordination (channels sync via iCloud/Dropbox/git)
-- Session history queryable via channels CLI
-- Foundation for Channels Web UI session viewer
+**Key env vars:** `SESSION_ID`, `SESSION_THREAD_ID`, `SESSION_WORKSPACE`
 
 ---
 
@@ -308,40 +198,9 @@ Refactor daemon to use `personas run` as underlying primitive.
 
 ## Unified Channel Address Resolution <!-- shipped: 0.6.0 -->
 
-Resolve `@name` addresses by checking both registered projects and local personas.
+`@name` addresses resolve to local persona DMs.
 
-**Problem:** When publishing to `@project-name`, the user expects it to route to the registered project. Currently, cross-project routing requires explicit `@project/persona` syntax, but `@project` alone (delegating to the project's entry point) feels more natural.
-
-**Current behavior:**
-
-- `@persona` → local persona DM
-- `@project/persona` → cross-project persona DM
-
-**Proposed behavior:**
-
-- `@name` → check registered projects first, then local personas (or configurable order)
-- `@name` to a project → routes to that project's root/entry point
-- Conflict detection in `health check` when a local persona name matches a registered project name
-
-**Example:**
-
-```bash
-# Current (explicit)
-npx dot-agents channels publish "@myproject/root" "do something"
-
-# Proposed (natural)
-npx dot-agents channels publish "@myproject" "do something"
-# → resolves to registered project's entry point
-```
-
-**Implementation:**
-
-1. `channels publish @name` checks `projects.yaml` for matching project
-2. If found, routes to `@project/root` (or implicit entry point)
-3. If not found, falls back to local persona lookup
-4. `health check` warns on name collisions between projects and personas
-
-**Discovered:** 2026-01-02 during cross-project delegation attempt.
+**Note:** Cross-project routing via `projects.yaml` shipped in 0.6.0 but is being **deprecated in 0.8** (see CLI Namespace Restructuring). Projects should define their own `AGENTS.md` contract instead.
 
 ---
 
@@ -531,106 +390,11 @@ Improve CLI feedback when publishing to persona DMs.
 
 ---
 
-## Cross-Project Delegation Callbacks <!-- shipped: 0.6.0 -->
+## Cross-Project Delegation Callbacks <!-- shipped: 0.6.0, deprecating: 0.8 -->
 
-Support cross-project channel syntax for delegation callbacks.
+Cross-project channel syntax (`#project/channel`) and callback routing shipped in 0.6.0.
 
-**Problem:** When `@dot-agents` does work delegated by `@docs/dottie`, it needs to post status updates back to the caller's session thread. Current docs only show local `#sessions` syntax.
-
-**Required syntax:**
-
-```bash
-# Delegate posts back to caller's session thread
-npx dot-agents channels publish "#docs/sessions" "Status update..." --thread $SESSION_ID --from "@dot-agents"
-```
-
-**Components:**
-
-1. **Cross-project channel syntax** - `#project/channel` to publish to another project's channel (ALREADY WORKING)
-2. **`--from` flag** - Identify sender (ideally auto-populated from current project/persona)
-3. **Caller passes session context** - Delegation prompt includes `$SESSION_ID` and project identifier
-
-**Implementation:**
-
-- ~~Extend channel address parsing to support `#project/channel`~~ (DONE)
-- Auto-populate `--from` based on registered project identity
-- Document pattern in \_base persona for cross-project delegations
-- Add end-to-end spec: delegation → work → callback → caller reads update
-
-### E2E Test Case: Cross-Project Delegation
-
-**Scenario:** `@docs/dottie` delegates "add channel tests" to `@dot-agents`
-
-**Preconditions:**
-
-- Two registered projects: `docs` and `dot-agents`
-- `@docs/dottie` has an active session thread in `#sessions`
-
-**Flow:**
-
-```text
-1. @docs/dottie starts session
-   → SESSION_ID=2026-01-02T21:00:00.000Z created in @docs#sessions
-
-2. @docs/dottie publishes delegation
-   → npx dot-agents channels publish "@dot-agents" "Add channel tests..." \
-       --tags "callback:@docs#sessions,thread:$SESSION_ID"
-
-3. @dot-agents processes message (daemon or `channels process`)
-   → Extracts callback info from tags
-   → Invokes persona with task + callback context
-   → Sets CALLER_SESSION_ID and CALLER_PROJECT env vars
-
-4. @dot-agents/developer does work
-   → Reads channel.ts, writes tests, runs them
-
-5. @dot-agents/developer posts callback
-   → npx dot-agents channels publish "#docs/sessions" \
-       "Task complete: added 12 channel tests, all passing" \
-       --thread $CALLER_SESSION_ID --from "@dot-agents"
-
-6. @docs/dottie reads session thread
-   → npx dot-agents channels read "#sessions" --thread $SESSION_ID
-   → Sees callback message from @dot-agents
-```
-
-**Assertions:**
-
-- [x] `@project` routing resolves to registered project path (routes to `@root`)
-- [x] `#project/channel` publishes to that project's channel
-- [x] `FROM_ADDRESS` auto-set by session, parsed by processor into `FROM_CHANNEL` + `FROM_THREAD`
-- [x] `--from` identifies sender project (or uses `FROM_ADDRESS` env var)
-- [x] Caller can read callback in their session thread
-
-**Discovered:** 2026-01-02 - This exact flow failed because tmux+claude workaround bypassed the channels mechanism.
-
----
-
-## `projects list` Daemon Status <!-- shipped: 0.6.0 -->
-
-Show whether registered projects have a running daemon.
-
-**Problem:** When delegating to `@project`, it's unclear whether the project has an active daemon to process the message or if manual intervention is needed.
-
-**Proposed:**
-
-```bash
-npx dot-agents projects list
-
-# Output:
-# Name         Path                          Daemon
-# docs         ~/Documents                   ● running (pid 12345)
-# scoutos      ~/Code/scoutos/scoutos        ○ stopped
-# dot-agents   ~/Code/tnez/dot-agents        ○ stopped
-```
-
-**Implementation:**
-
-- Check for daemon PID file or running process per project
-- Add status column to `projects list` output
-- Consider `--json` flag for programmatic access
-
-**Discovered:** 2026-01-02 during cross-project delegation.
+**Note:** The `projects` registry is being deprecated in 0.8. Cross-project communication will rely on each project's documented `AGENTS.md` contract rather than framework-managed routing.
 
 ---
 
